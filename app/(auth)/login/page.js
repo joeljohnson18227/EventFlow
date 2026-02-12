@@ -2,13 +2,13 @@ import styles from './login.module.css';
 
 export default function LoginPage() {
     return (
-        
-           
-            
-            <div className={styles.container}>
-                <div className={styles.loginBox}>
+        <div className={styles.container}>
+            <div className={styles.loginBox}>
+                <div className="text-center">
+                    <h2 className="text-3xl font-bold tracking-tight text-white">Welcome back</h2>
+                </div>
                 <form>
-                    <div className="space-y-3">
+                    <div className="space-y-3 mt-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-300 uppercase">Email</label>
                             <input
@@ -32,7 +32,6 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             className="mt-5 w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold text- hover:bg-primary-700 transition shadow-lg shadow-primary-600/25"
-
                         >
                             Sign In
                         </button>
@@ -40,8 +39,7 @@ export default function LoginPage() {
                 </form>
                 <div className="mt-4 text-center text-sm text-slate-300">
                     Don&apos;t have an account?{' '}
-                    <a href="/register" className="text-blue-600 hover:text-blue-700 hover:underline font-semibold transition"
->
+                    <a href="/register" className="text-blue-600 hover:text-blue-700 hover:underline font-semibold transition">
                         Sign Up
                     </a>
                 </div>
