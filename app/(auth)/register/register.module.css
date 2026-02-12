@@ -1,0 +1,82 @@
+.authPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+
+  background-image: url("/auth-bg.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.authBox {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  border-radius: 18px;
+
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  color: white;
+}
+
+.authForm {
+  margin-top: 24px;
+}
+
+.authInput {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+.authInput::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.authButton {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 14px;
+
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+
+  transition: background 0.2s ease;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+}
+
+.authButton:hover {
+  background: #1d4ed8;
+}
+
+.authButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+
+.authButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.authLink {
+  color: #2563eb;
+}
+.authLink:hover {
+  color: #1d4ed8;
+}
