@@ -91,9 +91,15 @@ export default function LoginPage() {
                             Email
                         </label>
                         <FormField>
-  <Label>Email</Label>
-  <Input type="email" placeholder="Email" />
-</FormField>
+                        <Label>Email</Label>
+                        <Input 
+                            type="email" 
+                            name="email"
+                            placeholder="Email" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                    </FormField>
 
                     </div>
 
@@ -110,9 +116,14 @@ export default function LoginPage() {
                             Password
                         </label>
                         <FormField>
-  <Label>Password</Label>
-  <Input type="password" />
-</FormField>
+                        <Label>Password</Label>
+                        <Input 
+                            type="password" 
+                            name="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                    </FormField>
 
                     </div>
 
