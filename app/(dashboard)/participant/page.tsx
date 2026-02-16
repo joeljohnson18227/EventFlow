@@ -3,15 +3,15 @@ import { Input, Label, FormField } from "@/components/ui/form";
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { 
-  Users, 
-  Calendar, 
-  Clock, 
-  Trophy, 
-  FileText, 
-  MessageSquare, 
-  Plus, 
-  Copy, 
+import {
+  Users,
+  Calendar,
+  Clock,
+  Trophy,
+  FileText,
+  MessageSquare,
+  Plus,
+  Copy,
   Check,
   ChevronRight,
   Bell,
@@ -36,6 +36,13 @@ export default function ParticipantDashboard() {
   const [newTeamName, setNewTeamName] = useState("");
   const [joinCode, setJoinCode] = useState("");
 
+  // Submission Form State
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [projectTitle, setProjectTitle] = useState("");
+  const [projectDesc, setProjectDesc] = useState("");
+  const [repoLink, setRepoLink] = useState("");
+  const [demoLink, setDemoLink] = useState("");
+
   // Get user ID from localStorage (set by login)
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -56,7 +63,7 @@ export default function ParticipantDashboard() {
           "x-user-id": userId
         }
       });
-      
+
       if (profileRes.ok) {
         const profileData = await profileRes.json();
         setUser(profileData.user);
@@ -68,7 +75,7 @@ export default function ParticipantDashboard() {
           "x-user-id": userId
         }
       });
-      
+
       if (teamRes.ok) {
         const teamData = await teamRes.json();
         if (teamData.teams && teamData.teams.length > 0) {
@@ -91,7 +98,7 @@ export default function ParticipantDashboard() {
 
   const handleCreateTeam = async (e) => {
     e.preventDefault();
-    
+
     if (!newTeamName.trim()) {
       showNotification("Please enter a team name", "error");
       return;
@@ -100,7 +107,7 @@ export default function ParticipantDashboard() {
     try {
       const userData = localStorage.getItem("user");
       const parsedUser = JSON.parse(userData);
-      
+
       const res = await fetch("/api/teams", {
         method: "POST",
         headers: {
@@ -132,7 +139,7 @@ export default function ParticipantDashboard() {
 
   const handleJoinTeam = async (e) => {
     e.preventDefault();
-    
+
     if (!joinCode.trim()) {
       showNotification("Please enter an invite code", "error");
       return;
@@ -141,7 +148,7 @@ export default function ParticipantDashboard() {
     try {
       const userData = localStorage.getItem("user");
       const parsedUser = JSON.parse(userData);
-      
+
       const res = await fetch("/api/teams/join", {
         method: "POST",
         headers: {
@@ -167,6 +174,53 @@ export default function ParticipantDashboard() {
     } catch (error) {
       console.error("Error joining team:", error);
       showNotification("Failed to join team", "error");
+    }
+  };
+
+  const handleSubmitProject = async (e) => {
+    e.preventDefault();
+
+    if (!projectTitle || !projectDesc || !repoLink) {
+      showNotification("Please fill in all required fields", "error");
+      return;
+    }
+
+    if (!events.length) {
+      showNotification("No active event found to submit to.", "error");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event: events[0]._id, // Defaulting to first event for now
+          team: team._id,
+          title: projectTitle,
+          description: projectDesc,
+          repoLink,
+          demoLink
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setShowSubmitModal(false);
+        setProjectTitle("");
+        setProjectDesc("");
+        setRepoLink("");
+        setDemoLink("");
+        showNotification("Project submitted successfully!", "success");
+      } else {
+        showNotification(data.error || "Failed to submit project", "error");
+      }
+    } catch (error) {
+      console.error("Error submitting project:", error);
+      showNotification("Failed to submit project", "error");
     }
   };
 
@@ -209,11 +263,10 @@ export default function ParticipantDashboard() {
     <div className="min-h-screen bg-slate-50">
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 ${
-          notification.type === "success" 
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 ${notification.type === "success"
+            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
             : "bg-red-50 text-red-700 border border-red-200"
-        }`}>
+          }`}>
           {notification.type === "success" ? <Check className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
           {notification.message}
         </div>
@@ -250,7 +303,7 @@ export default function ParticipantDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+
         {/* No Team State */}
         {!team ? (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
@@ -298,7 +351,7 @@ export default function ParticipantDashboard() {
                   </span>
                 </div>
               </div>
-              
+
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div>
@@ -380,7 +433,7 @@ export default function ParticipantDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -392,7 +445,7 @@ export default function ParticipantDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -404,7 +457,7 @@ export default function ParticipantDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -480,7 +533,7 @@ export default function ParticipantDashboard() {
                         <p className="text-sm text-slate-500">Submit your final project</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-start gap-3 pb-4 border-b border-slate-100">
                       <div className="w-12 h-12 bg-amber-50 rounded-lg flex flex-col items-center justify-center">
                         <span className="text-xs text-amber-600 font-medium">FEB</span>
@@ -491,7 +544,7 @@ export default function ParticipantDashboard() {
                         <p className="text-sm text-slate-500">Upload 2-min pitch</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-start gap-3">
                       <div className="w-12 h-12 bg-blue-50 rounded-lg flex flex-col items-center justify-center">
                         <span className="text-xs text-blue-600 font-medium">MAR</span>
@@ -509,7 +562,10 @@ export default function ParticipantDashboard() {
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                   <h3 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h3>
                   <div className="space-y-3">
-                    <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-50 transition-colors group">
+                    <button
+                      onClick={() => setShowSubmitModal(true)}
+                      className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-50 transition-colors group"
+                    >
                       <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
                         <FileText className="w-5 h-5 text-blue-600" />
                       </div>
@@ -518,7 +574,7 @@ export default function ParticipantDashboard() {
                         <p className="text-sm text-slate-500">Upload your work</p>
                       </div>
                     </button>
-                    
+
                     <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-50 transition-colors group">
                       <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
                         <MessageSquare className="w-5 h-5 text-purple-600" />
@@ -528,7 +584,7 @@ export default function ParticipantDashboard() {
                         <p className="text-sm text-slate-500">Message your team</p>
                       </div>
                     </button>
-                    
+
                     <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-50 transition-colors group">
                       <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
                         <Bell className="w-5 h-5 text-emerald-600" />
@@ -556,10 +612,10 @@ export default function ParticipantDashboard() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Team Name
                 </label>
-               <FormField>
-  <Label>Field Name</Label>
-  <Input type="text" />
-</FormField>
+                <FormField>
+                  <Label>Field Name</Label>
+                  <Input type="text" />
+                </FormField>
 
               </div>
               <div className="flex gap-3">
@@ -592,10 +648,10 @@ export default function ParticipantDashboard() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Invite Code
                 </label>
-             <FormField>
-  <Label>Field Name</Label>
-  <Input type="text" />
-</FormField>
+                <FormField>
+                  <Label>Field Name</Label>
+                  <Input type="text" />
+                </FormField>
 
               </div>
               <div className="flex gap-3">
@@ -611,6 +667,87 @@ export default function ParticipantDashboard() {
                   className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Join Team
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Project Modal */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Submit Project</h3>
+            <form onSubmit={handleSubmitProject} className="space-y-4">
+              <div>
+                <Label className="block text-sm font-medium text-slate-700 mb-1">
+                  Project Title <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  required
+                  value={projectTitle}
+                  onChange={(e) => setProjectTitle(e.target.value)}
+                  placeholder="e.g. AI Waste Sorter"
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <Label className="block text-sm font-medium text-slate-700 mb-1">
+                  Description <span className="text-red-500">*</span>
+                </Label>
+                <textarea
+                  required
+                  value={projectDesc}
+                  onChange={(e) => setProjectDesc(e.target.value)}
+                  placeholder="Describe your project..."
+                  rows={4}
+                  className="w-full rounded-md border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <Label className="block text-sm font-medium text-slate-700 mb-1">
+                  GitHub Repository <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="url"
+                  required
+                  value={repoLink}
+                  onChange={(e) => setRepoLink(e.target.value)}
+                  placeholder="https://github.com/username/repo"
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <Label className="block text-sm font-medium text-slate-700 mb-1">
+                  Demo Link (Optional)
+                </Label>
+                <Input
+                  type="url"
+                  value={demoLink}
+                  onChange={(e) => setDemoLink(e.target.value)}
+                  placeholder="https://youtube.com/..."
+                  className="w-full"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitModal(false)}
+                  className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Submit Project
                 </button>
               </div>
             </form>
