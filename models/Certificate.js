@@ -8,6 +8,12 @@ const CertificateSchema = new mongoose.Schema(
       required: true,
     },
 
+    certificateId: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+
     recipientName: {
       type: String,
       required: true,
@@ -35,5 +41,7 @@ const CertificateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Certificate ||
+const Certificate = mongoose.models.Certificate ||
   mongoose.model("Certificate", CertificateSchema);
+
+export default Certificate;

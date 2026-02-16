@@ -1,20 +1,26 @@
 
 import dbConnect from "@/lib/db-connect";
-import Certificate from "@/models/Certificate";
+import mongoose from "mongoose";
 import { notFound } from "next/navigation";
 
 interface Props {
-  params: {
+  params: Promise<{
     certificateId: string;
-  };
+  }>;
 }
 
 export default async function VerifyCertificate({ params }: Props) {
+  const { certificateId } = await params;
   await dbConnect();
 
-  const certificate = await Certificate.findOne({
-    certificateId: params.certificateId,
-  }).lean();
+  // Use aggregation with $limit to avoid TypeScript issues
+  const certificates = await mongoose.connection.db
+    .collection('certificates')
+    .find({ certificateId })
+    .limit(1)
+    .toArray();
+
+  const certificate = certificates[0] || null;
 
   if (!certificate) {
     return (
