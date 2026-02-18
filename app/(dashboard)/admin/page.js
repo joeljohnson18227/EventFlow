@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -65,9 +65,122 @@ export default function AdminDashboard() {
   const user = session?.user;
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Event creation modal state
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [eventFormData, setEventFormData] = useState({
+    title: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    registrationDeadline: "",
+    status: "upcoming",
+    rules: [],
+    tracks: []
+  });
+  const [newRule, setNewRule] = useState("");
+  const [newTrack, setNewTrack] = useState("");
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [events, setEvents] = useState([]);
 
   const handleLogout = () => {
     signOut({ callbackUrl: "/login" });
+  };
+
+  // Fetch events on mount
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch("/api/events");
+      const data = await res.json();
+      if (data.events) {
+        setEvents(data.events);
+      }
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  };
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    
+    if (!eventFormData.title || !eventFormData.description || !eventFormData.startDate || !eventFormData.endDate) {
+      setNotification({ type: "error", message: "Please fill in all required fields" });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    
+    setIsCreatingEvent(true);
+    
+    // Get the current user's ID from session
+    const organizerId = user?.id;
+    
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...eventFormData,
+          organizerId
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setNotification({ type: "success", message: "Event created successfully!" });
+        setShowEventModal(false);
+        setEventFormData({
+          title: "",
+          description: "",
+          startDate: "",
+          endDate: "",
+          registrationDeadline: "",
+          status: "upcoming",
+          rules: [],
+          tracks: []
+        });
+        fetchEvents(); // Refresh events list
+      } else {
+        setNotification({ type: "error", message: data.error || "Failed to create event" });
+      }
+    } catch (error) {
+      console.error("Error creating event:", error);
+      setNotification({ type: "error", message: "Failed to create event" });
+    } finally {
+      setIsCreatingEvent(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleAddRule = () => {
+    if (newRule.trim()) {
+      setEventFormData({ ...eventFormData, rules: [...eventFormData.rules, newRule.trim()] });
+      setNewRule("");
+    }
+  };
+
+  const handleRemoveRule = (index) => {
+    const newRules = [...eventFormData.rules];
+    newRules.splice(index, 1);
+    setEventFormData({ ...eventFormData, rules: newRules });
+  };
+
+  const handleAddTrack = () => {
+    if (newTrack.trim()) {
+      setEventFormData({ ...eventFormData, tracks: [...eventFormData.tracks, newTrack.trim()] });
+      setNewTrack("");
+    }
+  };
+
+  const handleRemoveTrack = (index) => {
+    const newTracks = [...eventFormData.tracks];
+    newTracks.splice(index, 1);
+    setEventFormData({ ...eventFormData, tracks: newTracks });
   };
 
   const getStatusColor = (status) => {
@@ -228,7 +341,10 @@ export default function AdminDashboard() {
                   <h2 className="text-lg font-semibold text-white tracking-wide">Recent Events</h2>
                   <p className="text-slate-500 text-sm font-mono">Manage and monitor your events</p>
                 </div>
-                <button className="btn-neon inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-300">
+                <button 
+                  onClick={() => setShowEventModal(true)}
+                  className="btn-neon inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-300"
+                >
                   <Plus className="w-4 h-4" />
                   Create Event
                 </button>
@@ -378,6 +494,213 @@ export default function AdminDashboard() {
               ))}
             </nav>
           </div>
+        </div>
+      )}
+
+      {/* Create Event Modal */}
+      {showEventModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-space-800 border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">Create New Event</h3>
+              <button
+                onClick={() => setShowEventModal(false)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateEvent} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Event Title <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={eventFormData.title}
+                  onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
+                  placeholder="Enter event title"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-neon-cyan/50"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Description <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={eventFormData.description}
+                  onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
+                  placeholder="Describe your event..."
+                  rows={3}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-neon-cyan/50"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Start Date <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={eventFormData.startDate}
+                    onChange={(e) => setEventFormData({ ...eventFormData, startDate: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-neon-cyan/50"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    End Date <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={eventFormData.endDate}
+                    onChange={(e) => setEventFormData({ ...eventFormData, endDate: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-neon-cyan/50"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Registration Deadline
+                </label>
+                <input
+                  type="date"
+                  value={eventFormData.registrationDeadline}
+                  onChange={(e) => setEventFormData({ ...eventFormData, registrationDeadline: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-neon-cyan/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Status</label>
+                <select
+                  value={eventFormData.status}
+                  onChange={(e) => setEventFormData({ ...eventFormData, status: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-neon-cyan/50"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              {/* Rules */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Rules</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newRule}
+                    onChange={(e) => setNewRule(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddRule())}
+                    placeholder="Add a rule"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-neon-cyan/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddRule}
+                    className="px-4 py-2 bg-neon-cyan/20 text-neon-cyan rounded-xl hover:bg-neon-cyan/30"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {eventFormData.rules.map((rule, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-white/5 text-slate-300 rounded-lg text-sm"
+                    >
+                      {rule}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRule(index)}
+                        className="text-slate-500 hover:text-red-400"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tracks */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Tracks</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTrack}
+                    onChange={(e) => setNewTrack(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTrack())}
+                    placeholder="Add a track"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-neon-cyan/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTrack}
+                    className="px-4 py-2 bg-neon-violet/20 text-neon-violet rounded-xl hover:bg-neon-violet/30"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {eventFormData.tracks.map((track, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-white/5 text-slate-300 rounded-lg text-sm"
+                    >
+                      {track}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTrack(index)}
+                        className="text-slate-500 hover:text-red-400"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEventModal(false)}
+                  className="flex-1 px-4 py-3 text-slate-300 bg-white/5 rounded-xl hover:bg-white/10 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingEvent}
+                  className="flex-1 px-4 py-3 text-white bg-neon-cyan hover:bg-neon-cyan/80 rounded-xl transition disabled:opacity-50"
+                >
+                  {isCreatingEvent ? "Creating..." : "Create Event"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
+          notification.type === "success" 
+            ? "bg-green-500/20 text-green-400 border border-green-500/30" 
+            : "bg-red-500/20 text-red-400 border border-red-500/30"
+        }`}>
+          {notification.type === "success" ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+          {notification.message}
         </div>
       )}
     </div>
