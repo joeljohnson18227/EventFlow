@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 async function getUser(email) {
     try {
         await dbConnect();
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email }).lean();
         return user;
     } catch (error) {
         console.error("Failed to fetch user:", error);
@@ -20,6 +20,7 @@ async function getUser(email) {
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
     ...authConfig,
+    secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
     providers: [
         Credentials({
             async authorize(credentials) {
@@ -32,7 +33,15 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     const user = await getUser(email);
                     if (!user) return null;
                     const passwordsMatch = await bcrypt.compare(password, user.password);
-                    if (passwordsMatch) return user;
+                    if (passwordsMatch) {
+                        return {
+                            id: user._id.toString(),
+                            _id: user._id.toString(),
+                            email: user.email,
+                            name: user.name,
+                            role: user.role,
+                        };
+                    }
                 }
 
                 console.log("Invalid credentials");

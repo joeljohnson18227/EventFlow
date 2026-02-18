@@ -10,9 +10,9 @@ export default function Input({ error, className, ...props }: InputProps) {
       {...props}
       className={[
         "w-full px-3 py-2 rounded-lg border",
-        "bg-white dark:bg-zinc-900",
+        "bg-white text-slate-900",
         "text-sm outline-none transition",
-        "border-zinc-300 dark:border-zinc-700",
+        "border-slate-300",
         "focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         error ? "border-red-500 focus:ring-red-500" : "",

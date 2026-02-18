@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Users,
@@ -22,7 +23,8 @@ import {
 } from "lucide-react";
 
 export default function JudgeDashboard() {
-  const [user, setUser] = useState(null);
+  const { data: session, status } = useSession();
+  const user = session?.user;
   const [submissions, setSubmissions] = useState([]);
   const [completedEvaluations, setCompletedEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,15 +46,12 @@ export default function JudgeDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      fetchJudgeData(parsedUser.id);
-    } else {
+    if (status === "authenticated" && user?.id) {
+      fetchJudgeData(user.id);
+    } else if (status !== "loading") {
       setLoading(false);
     }
-  }, []);
+  }, [status, user?.id]);
 
   const fetchJudgeData = async (userId) => {
     try {

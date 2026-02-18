@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Zap, Menu, X, LogOut } from "lucide-react";
+import { Zap, Menu, X, LogOut, UserCircle } from "lucide-react";
 import Button from "./Button";
 import { useSession, signOut } from "next-auth/react";
 
@@ -48,14 +48,14 @@ export default function Navbar() {
             >
               Browse Events
             </Link>
-                <Link
-    href="/verify"
-    className="text-slate-400 hover:text-neon-cyan transition font-medium text-sm tracking-wide uppercase"
-  >
-    Verify Certificate
-  </Link>
+            <Link
+              href="/verify"
+              className="text-slate-400 hover:text-neon-cyan transition font-medium text-sm tracking-wide uppercase"
+            >
+              Verify Certificate
+            </Link>
 
-                
+
           </div>
 
           {/* Desktop Auth Buttons */}
@@ -65,6 +65,13 @@ export default function Navbar() {
                 <span className="text-sm font-medium text-slate-400">
                   {session.user?.name}
                 </span>
+                <Link
+                  href="/profile"
+                  className="p-2 text-slate-400 hover:text-neon-cyan hover:bg-white/5 rounded-lg transition cursor-pointer"
+                  title="View Profile"
+                >
+                  <UserCircle className="w-5 h-5" />
+                </Link>
                 <Button
                   variant="secondary"
                   className="text-slate-300 flex items-center gap-2 border-white/10 hover:border-neon-cyan/40 bg-white/5 hover:bg-white/10"
@@ -131,23 +138,24 @@ export default function Navbar() {
               </Link>
               <div className="pt-3 space-y-2 px-4">
                 {session ? (
-                  <Button
-                    variant="secondary"
-                    className="w-full justify-center text-slate-300 border-white/10 bg-white/5"
-                    onClick={() => signOut()}
-                  >
-                      <Link
-  href="/verify"
-  className="text-slate-400 hover:text-neon-cyan hover:bg-white/5 px-4 py-2.5 rounded-lg transition font-medium text-sm tracking-wide uppercase"
-  onClick={() => setIsMenuOpen(false)}
->
-  Verify Certificate
-</Link>
-
-
-                      
-                    Logout
-                  </Button>
+                  <>
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-2 text-slate-400 hover:text-neon-cyan hover:bg-white/5 px-4 py-2.5 rounded-lg transition font-medium text-sm cursor-pointer"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <UserCircle className="w-4 h-4" />
+                      My Profile
+                    </Link>
+                    <Button
+                      variant="secondary"
+                      className="w-full justify-center text-slate-300 border-white/10 bg-white/5"
+                      onClick={() => signOut()}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Link href="/login" className="block">

@@ -1,7 +1,8 @@
 'use client';
 import { Input, Label, FormField } from "@/components/ui/form";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Users,
@@ -23,7 +24,8 @@ import {
 } from "lucide-react";
 
 export default function ParticipantDashboard() {
-  const [user, setUser] = useState(null);
+  const { data: session, status } = useSession();
+  const user = session?.user;
   const [team, setTeam] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,38 +45,27 @@ export default function ParticipantDashboard() {
   const [repoLink, setRepoLink] = useState("");
   const [demoLink, setDemoLink] = useState("");
 
-  // Get user ID from localStorage (set by login)
+  // Fetch data when session is available
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      fetchUserData(parsedUser.id);
-    } else {
+    if (status === "authenticated" && user?.id) {
+      fetchUserData(user.id);
+    } else if (status !== "loading") {
       setLoading(false);
     }
-  }, []);
+  }, [status, user?.id]);
 
   const fetchUserData = async (userId) => {
     try {
       // Fetch user profile
-      const profileRes = await fetch("/api/auth/profile", {
-        headers: {
-          "x-user-id": userId
-        }
-      });
+      const profileRes = await fetch("/api/auth/profile");
 
       if (profileRes.ok) {
         const profileData = await profileRes.json();
-        setUser(profileData.user);
+        // Profile data available if needed
       }
 
       // Fetch user's team
-      const teamRes = await fetch(`/api/teams?userId=${userId}`, {
-        headers: {
-          "x-user-id": userId
-        }
-      });
+      const teamRes = await fetch(`/api/teams?userId=${userId}`);
 
       if (teamRes.ok) {
         const teamData = await teamRes.json();
@@ -105,18 +96,14 @@ export default function ParticipantDashboard() {
     }
 
     try {
-      const userData = localStorage.getItem("user");
-      const parsedUser = JSON.parse(userData);
-
       const res = await fetch("/api/teams", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": parsedUser.id
         },
         body: JSON.stringify({
           name: newTeamName,
-          leaderId: parsedUser.id,
+          leaderId: user?.id,
           eventId: events[0]?._id // Use first event as default
         })
       });
@@ -146,18 +133,14 @@ export default function ParticipantDashboard() {
     }
 
     try {
-      const userData = localStorage.getItem("user");
-      const parsedUser = JSON.parse(userData);
-
       const res = await fetch("/api/teams/join", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": parsedUser.id
         },
         body: JSON.stringify({
           inviteCode: joinCode,
-          userId: parsedUser.id
+          userId: user?.id
         })
       });
 
@@ -264,8 +247,8 @@ export default function ParticipantDashboard() {
       {/* Notification Toast */}
       {notification && (
         <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 ${notification.type === "success"
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-            : "bg-red-50 text-red-700 border border-red-200"
+          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          : "bg-red-50 text-red-700 border border-red-200"
           }`}>
           {notification.type === "success" ? <Check className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
           {notification.message}

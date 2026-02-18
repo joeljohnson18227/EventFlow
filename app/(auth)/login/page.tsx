@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Input, Label, ErrorText, FormField } from "@/components/ui/form";
 
 export default function LoginPage() {
@@ -7,6 +9,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -14,32 +17,20 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+            const result = await signIn("credentials", {
+                email,
+                password,
+                redirect: false,
             });
 
-            const data = await res.json();
-            console.log("Login response:", res.status, data);
-
-            if (res.ok) {
-                const role = data.user?.role || "participant";
-                console.log("Login successful, redirecting to:", role);
-                // Store user info in localStorage for profile page
-                localStorage.setItem("user", JSON.stringify({
-                    id: data.user?._id,
-                    _id: data.user?._id,
-                    name: data.user?.name,
-                    email: data.user?.email,
-                    role: data.user?.role
-                }));
-                // Delay slightly to ensure cookie is set, then redirect
-                setTimeout(() => {
-                    window.location.replace("/" + role);
-                }, 200);
+            if (result?.error) {
+                setError("Invalid credentials");
             } else {
-                setError(data.error || "Invalid credentials");
+                // Fetch session to get user role for redirect
+                const sessionRes = await fetch("/api/auth/session");
+                const session = await sessionRes.json();
+                const role = session?.user?.role || "participant";
+                router.push(`/${role}`);
             }
         } catch (err) {
             setError("Something went wrong. Please try again.");

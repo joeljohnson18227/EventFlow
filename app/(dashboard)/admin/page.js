@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
-  Award, 
-  Settings, 
+import { useSession, signOut } from "next-auth/react";
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  Award,
+  Settings,
   BarChart3,
   Shield,
   Zap,
@@ -24,7 +24,8 @@ import {
   MoreHorizontal,
   LogOut,
   Menu,
-  X
+  X,
+  UserCircle
 } from "lucide-react";
 import Aurora from "@/components/common/Aurora";
 
@@ -60,22 +61,13 @@ const navItems = [
 ];
 
 export default function AdminDashboard() {
-  const router = useRouter();
+  const { data: session } = useSession();
+  const user = session?.user;
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    router.push("/login");
+    signOut({ callbackUrl: "/login" });
   };
 
   const getStatusColor = (status) => {
@@ -116,7 +108,7 @@ export default function AdminDashboard() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden p-2 text-slate-400 hover:text-neon-cyan hover:bg-white/5 rounded-lg transition"
               >
@@ -139,9 +131,9 @@ export default function AdminDashboard() {
             <div className="hidden md:flex flex-1 max-w-md mx-8">
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input 
-                  type="text" 
-                  placeholder="Search events, users..." 
+                <input
+                  type="text"
+                  placeholder="Search events, users..."
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-neon-cyan/30 focus:bg-white/10 transition"
                 />
               </div>
@@ -154,15 +146,19 @@ export default function AdminDashboard() {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-neon-cyan rounded-full"></span>
               </button>
               <div className="hidden md:flex items-center gap-3 ml-3 pl-3 border-l border-white/10">
-                <div className="w-8 h-8 bg-gradient-to-br from-neon-cyan to-neon-violet rounded-full flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-white" />
-                </div>
+                <Link
+                  href="/profile"
+                  className="w-8 h-8 bg-gradient-to-br from-neon-cyan to-neon-violet rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition"
+                  title="View Profile"
+                >
+                  <UserCircle className="w-4 h-4 text-white" />
+                </Link>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-white">{user?.name || "Admin"}</span>
                   <span className="text-xs text-slate-500">Administrator</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="p-2 text-slate-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition ml-2"
                 title="Logout"
@@ -177,7 +173,7 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <div className="relative z-10 pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          
+
           {/* Page Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
@@ -191,23 +187,21 @@ export default function AdminDashboard() {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             {statsData.map((stat, index) => (
-              <div 
+              <div
                 key={index}
                 className="glass-card border-glow p-5 md:p-6 rounded-2xl transition-all duration-300 group"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    stat.color === 'cyan' ? 'bg-neon-cyan/10 border border-neon-cyan/20' :
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color === 'cyan' ? 'bg-neon-cyan/10 border border-neon-cyan/20' :
                     stat.color === 'violet' ? 'bg-neon-violet/10 border border-neon-violet/20' :
-                    stat.color === 'green' ? 'bg-green-500/10 border border-green-500/20' :
-                    'bg-neon-pink/10 border border-neon-pink/20'
-                  }`}>
-                    <stat.icon className={`w-5 h-5 ${
-                      stat.color === 'cyan' ? 'text-neon-cyan' :
+                      stat.color === 'green' ? 'bg-green-500/10 border border-green-500/20' :
+                        'bg-neon-pink/10 border border-neon-pink/20'
+                    }`}>
+                    <stat.icon className={`w-5 h-5 ${stat.color === 'cyan' ? 'text-neon-cyan' :
                       stat.color === 'violet' ? 'text-neon-violet' :
-                      stat.color === 'green' ? 'text-green-400' :
-                      'text-neon-pink'
-                    }`} />
+                        stat.color === 'green' ? 'text-green-400' :
+                          'text-neon-pink'
+                      }`} />
                   </div>
                   <span className="flex items-center gap-1 text-xs font-medium text-green-400">
                     <TrendingUp className="w-3 h-3" />
@@ -226,7 +220,7 @@ export default function AdminDashboard() {
 
           {/* Main Content Grid */}
           <div className="grid lg:grid-cols-3 gap-6">
-            
+
             {/* Recent Events - 2 columns */}
             <div className="lg:col-span-2 glass-card border-glow rounded-2xl overflow-hidden">
               <div className="p-5 md:p-6 border-b border-white/[0.06] flex items-center justify-between">
@@ -338,7 +332,7 @@ export default function AdminDashboard() {
               { label: "View Certificates", icon: Award, href: "/admin/certificates", desc: "Generate or verify certificates" },
               { label: "System Settings", icon: Settings, href: "/admin/settings", desc: "Configure platform preferences" },
             ].map((action, index) => (
-              <Link 
+              <Link
                 key={index}
                 href={action.href}
                 className="glass-card border-glow p-5 rounded-2xl transition-all duration-300 group hover:bg-white/[0.04]"
@@ -362,7 +356,7 @@ export default function AdminDashboard() {
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div 
+          <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsMobileMenuOpen(false)}
           ></div>
@@ -373,11 +367,10 @@ export default function AdminDashboard() {
                   key={index}
                   href={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                    item.active 
-                      ? 'bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20' 
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${item.active
+                    ? 'bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
