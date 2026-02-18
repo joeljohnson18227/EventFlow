@@ -41,9 +41,9 @@ export async function GET(request) {
     }
 
     const teams = await Team.find(query)
-      .populate('leader', 'name email')
-      .populate('members', 'name email')
-      .populate('event', 'title startDate endDate')
+      .populate('leader', 'name email role')
+      .populate('members', 'name email role')
+      .populate('event', 'title startDate endDate description')
       .sort({ createdAt: -1 });
 
     return NextResponse.json({ teams });
@@ -103,11 +103,15 @@ export async function POST(request) {
     const generatedInviteCode = inviteCode || Math.random().toString(36).substring(2, 10).toUpperCase();
 
     const team = await Team.create({
-      name,
+      name: name.trim(),
+      description: description?.trim() || "",
       event: eventId,
       leader: leaderId,
       members: [],
-      inviteCode: generatedInviteCode
+      inviteCode: finalInviteCode,
+      maxMembers: maxMembers || 5,
+      status: "active",
+      isVerified: false
     });
 
     await team.populate('leader', 'name email');
@@ -116,6 +120,24 @@ export async function POST(request) {
     return NextResponse.json({ team });
   } catch (error) {
     console.error("Error creating team:", error);
+    
+    // Handle mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message);
+      return NextResponse.json(
+        { error: messages.join(', ') },
+        { status: 400 }
+      );
+    }
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { error: "Team with this name already exists for this event" },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json({ error: "Failed to create team" }, { status: 500 });
   }
 }

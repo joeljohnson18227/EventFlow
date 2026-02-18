@@ -19,4 +19,28 @@ const TeamSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+// Virtual for member count
+TeamSchema.virtual('memberCount').get(function() {
+    return this.members.length + 1; // +1 for leader
+});
+
+// Check if team is full
+TeamSchema.virtual('isFull').get(function() {
+    return this.members.length >= this.maxMembers;
+});
+
+// Generate unique invite code before saving
+TeamSchema.pre('save', async function(next) {
+    if (!this.inviteCode) {
+        this.inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
+    next();
+});
+
+// Index for faster queries
+TeamSchema.index({ event: 1 });
+TeamSchema.index({ leader: 1 });
+TeamSchema.index({ 'members': 1 });
+TeamSchema.index({ inviteCode: 1 });
+
 export default mongoose.models.Team || mongoose.model("Team", TeamSchema);

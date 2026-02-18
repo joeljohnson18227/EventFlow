@@ -5,10 +5,15 @@ import { useState } from "react";
 import { Zap, Menu, X, LogOut, UserCircle } from "lucide-react";
 import Button from "./Button";
 import { useSession, signOut } from "next-auth/react";
+import { useTheme } from "@/context/ThemeContext";
+
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { data: session } = useSession();
+  
+  const { darkMode, toggleTheme } = useTheme();
+
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -162,6 +167,13 @@ export default function Navbar() {
                       <Button variant="secondary" className="w-full justify-center text-slate-300 border-white/10 bg-white/5">
                         Login
                       </Button>
+                  <button
+  onClick={toggleTheme}
+  className="px-3 py-1 border rounded"
+>
+  {darkMode ? "Light Mode" : "Dark Mode"}
+</button>
+
                     </Link>
                     <Link href="/register" className="block">
                       <Button variant="primary" className="btn-neon w-full justify-center border-0">
@@ -178,5 +190,6 @@ export default function Navbar() {
     </nav>
   );
 }
+
 
 
