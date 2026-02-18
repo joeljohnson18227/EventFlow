@@ -20,7 +20,8 @@ import {
   Zap,
   ExternalLink,
   UserPlus,
-  User
+  User,
+  Trash2
 } from "lucide-react";
 
 export default function ParticipantDashboard() {
@@ -36,6 +37,7 @@ export default function ParticipantDashboard() {
 
   // Form states
   const [newTeamName, setNewTeamName] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState("");
   const [joinCode, setJoinCode] = useState("");
 
   // Submission Form State
@@ -74,8 +76,8 @@ export default function ParticipantDashboard() {
         }
       }
 
-      // Fetch available events
-      const eventsRes = await fetch("/api/events");
+      // Fetch available events (upcoming and ongoing)
+      const eventsRes = await fetch("/api/events?status=upcoming,ongoing");
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json();
         setEvents(eventsData.events || []);
@@ -95,6 +97,11 @@ export default function ParticipantDashboard() {
       return;
     }
 
+    if (!selectedEventId) {
+      showNotification("Please select an event", "error");
+      return;
+    }
+
     try {
       const res = await fetch("/api/teams", {
         method: "POST",
@@ -104,7 +111,7 @@ export default function ParticipantDashboard() {
         body: JSON.stringify({
           name: newTeamName,
           leaderId: user?.id,
-          eventId: events[0]?._id // Use first event as default
+          eventId: selectedEventId
         })
       });
 
@@ -204,6 +211,67 @@ export default function ParticipantDashboard() {
     } catch (error) {
       console.error("Error submitting project:", error);
       showNotification("Failed to submit project", "error");
+    }
+  };
+
+  const handleLeaveTeam = async () => {
+    if (!team || !user?.id) return;
+    
+    const isLeader = team.leader?._id === user.id || team.leader === user.id;
+    
+    if (isLeader) {
+      // For leader, confirm disband
+      if (!confirm("Are you sure you want to disband your team? This action cannot be undone.")) {
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/teams/leave?teamId=${team._id}&userId=${user.id}`, {
+          method: "DELETE"
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          setTeam(null);
+          showNotification("Team disbanded successfully!", "success");
+        } else {
+          showNotification(data.error || "Failed to disband team", "error");
+        }
+      } catch (error) {
+        console.error("Error disbanding team:", error);
+        showNotification("Failed to disband team", "error");
+      }
+    } else {
+      // For members, confirm leave
+      if (!confirm("Are you sure you want to leave this team?")) {
+        return;
+      }
+      
+      try {
+        const res = await fetch("/api/teams/leave", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: user?.id,
+            teamId: team._id
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          setTeam(null);
+          showNotification("You have left the team!", "success");
+        } else {
+          showNotification(data.error || "Failed to leave team", "error");
+        }
+      } catch (error) {
+        console.error("Error leaving team:", error);
+        showNotification("Failed to leave team", "error");
+      }
     }
   };
 
@@ -332,6 +400,13 @@ export default function ParticipantDashboard() {
                   <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-sm font-medium rounded-full">
                     Active
                   </span>
+                  <button
+                    onClick={handleLeaveTeam}
+                    className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600"
+                    title={team.leader?._id === user?.id || team.leader === user?.id ? "Disband Team" : "Leave Team"}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
@@ -343,7 +418,9 @@ export default function ParticipantDashboard() {
                   </div>
                   <div>
                     <p className="text-slate-500 text-sm mb-1">Members</p>
-                    <p className="font-medium text-slate-900">{team.members?.length || 0} / 5</p>
+                    <p className="font-medium text-slate-900">
+                      {(team.members?.length || 0) + 1} / {team.maxMembers || 5}
+                    </p>
                   </div>
                   <div>
                     <p className="text-slate-500 text-sm mb-1">Invite Code</p>
@@ -592,19 +669,46 @@ export default function ParticipantDashboard() {
             <h3 className="text-xl font-bold text-slate-900 mb-4">Create a New Team</h3>
             <form onSubmit={handleCreateTeam}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Team Name
-                </label>
-                <FormField>
-                  <Label>Field Name</Label>
-                  <Input type="text" />
-                </FormField>
-
+                <Label className="block text-sm font-medium text-slate-700 mb-1">
+                  Team Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="Enter your team name"
+                  className="w-full"
+                  required
+                />
               </div>
+              
+              <div className="mb-4">
+                <Label className="block text-sm font-medium text-slate-700 mb-1">
+                  Select Event <span className="text-red-500">*</span>
+                </Label>
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Choose an event...</option>
+                  {events.map((event) => (
+                    <option key={event._id} value={event._id}>
+                      {event.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewTeamName("");
+                    setSelectedEventId("");
+                  }}
                   className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
                 >
                   Cancel
@@ -628,19 +732,28 @@ export default function ParticipantDashboard() {
             <h3 className="text-xl font-bold text-slate-900 mb-4">Join a Team</h3>
             <form onSubmit={handleJoinTeam}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Invite Code
-                </label>
-                <FormField>
-                  <Label>Field Name</Label>
-                  <Input type="text" />
-                </FormField>
-
+                <Label className="block text-sm font-medium text-slate-700 mb-1">
+                  Invite Code <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="Enter invite code (e.g., ABC123XY)"
+                  className="w-full font-mono"
+                  required
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Ask your team leader for the invite code
+                </p>
               </div>
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowJoinModal(false)}
+                  onClick={() => {
+                    setShowJoinModal(false);
+                    setJoinCode("");
+                  }}
                   className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
                 >
                   Cancel
