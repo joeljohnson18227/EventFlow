@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db-connect";
 import Event from "@/models/Event";
+import { auth } from "@/auth";
+import { z } from "zod";
+
+const eventSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  startDate: z.string().or(z.date()).transform((val) => new Date(val)),
+  endDate: z.string().or(z.date()).transform((val) => new Date(val)),
+  registrationDeadline: z.string().or(z.date()).optional().transform((val) => val ? new Date(val) : null),
+  rules: z.array(z.string()).optional(),
+  tracks: z.array(z.string()).optional(),
+  status: z.enum(["upcoming", "ongoing", "ended"]).optional(),
+});
 
 // GET all events
 export async function GET(request) {
@@ -30,7 +43,22 @@ export async function POST(request) {
   try {
     await dbConnect();
     
+    const session = await auth();
+    
+    if (!session || (session.user.role !== "admin" && session.user.role !== "organizer")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const body = await request.json();
+    const validation = eventSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: validation.error.format() },
+        { status: 400 }
+      );
+    }
+    
     const { 
       title, 
       description, 
@@ -39,25 +67,16 @@ export async function POST(request) {
       registrationDeadline,
       rules,
       tracks,
-      status,
-      organizerId
-    } = body;
-    
-    // Validate required fields
-    if (!title || !description || !startDate || !endDate) {
-      return NextResponse.json(
-        { error: "Title, description, start date, and end date are required" },
-        { status: 400 }
-      );
-    }
+      status
+    } = validation.data;
     
     const event = await Event.create({
       title,
       description,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null,
-      organizer: organizerId || null,
+      startDate,
+      endDate,
+      registrationDeadline,
+      organizer: session.user.id,
       rules: rules || [],
       tracks: tracks || [],
       status: status || "upcoming"
@@ -74,3 +93,4 @@ export async function POST(request) {
     );
   }
 }
+

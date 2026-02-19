@@ -4,6 +4,20 @@ import Team from "@/models/Team";
 import User from "@/models/User";
 import Event from "@/models/Event";
 import { auth } from "@/auth";
+import { z } from "zod";
+import { rateLimit } from "@/lib/rate-limit";
+
+const limiter = rateLimit({
+    interval: 60 * 1000, // 1 minute
+});
+
+const teamSchema = z.object({
+  name: z.string().min(1, "Team name is required").trim(),
+  eventId: z.string().min(1, "Please select an event for your team"),
+  inviteCode: z.string().optional(),
+  description: z.string().optional(),
+  maxMembers: z.number().int().positive().optional().default(5),
+});
 
 // GET all teams
 export async function GET(request) {
@@ -38,6 +52,13 @@ export async function GET(request) {
 
 // CREATE a new team
 export async function POST(request) {
+  const ip = request.headers.get("x-forwarded-for") || "anonymous";
+  const { isRateLimited } = limiter.check(5, ip); // 5 requests per minute per IP
+
+  if (isRateLimited) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     await dbConnect();
     const session = await auth();
@@ -50,30 +71,17 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, eventId, inviteCode, description, maxMembers } = body;
+    const validation = teamSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: validation.error.format() },
+        { status: 400 }
+      );
+    }
+    
+    const { name, eventId, inviteCode, description, maxMembers } = validation.data;
     const leaderId = session.user.id;
-    
-    // Validate required fields
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { error: "Team name is required" },
-        { status: 400 }
-      );
-    }
-    
-    if (!eventId) {
-      return NextResponse.json(
-        { error: "Please select an event for your team" },
-        { status: 400 }
-      );
-    }
-    
-    if (!leaderId) {
-      return NextResponse.json(
-        { error: "Leader ID is required" },
-        { status: 400 }
-      );
-    }
     
     // Validate user exists and is a participant
     const user = await User.findById(leaderId);
@@ -152,13 +160,13 @@ export async function POST(request) {
     }
     
     const team = await Team.create({
-      name: name.trim(),
-      description: description?.trim() || "",
+      name: name,
+      description: description || "",
       event: eventId,
       leader: leaderId,
       members: [],
       inviteCode: finalInviteCode,
-      maxMembers: maxMembers || 5,
+      maxMembers: maxMembers,
       status: "active",
       isVerified: false
     });
@@ -193,3 +201,4 @@ export async function POST(request) {
     return NextResponse.json({ error: "Failed to create team" }, { status: 500 });
   }
 }
+
