@@ -2,6 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { validateRegister } from "@/utils/validateRegister";
+
+
+
+
+const [errors, setErrors] = useState({});
+const [status, setStatus] = useState({
+  error: "",
+  success: "",
+  loading: false,
+});
 
 const styles = {
   page: {
@@ -93,39 +104,47 @@ export default function RegisterPage() {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    setStatus({ error: "", success: "", loading: true });
+  const validationErrors = validateRegister(formData);
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
 
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+  setErrors({});
+  setStatus({ error: "", success: "", loading: true });
 
-      const data = await res.json();
+  try {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
 
-      if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
-      }
+    const data = await res.json();
 
-      setStatus({
-        error: "",
-        success: "Registration successful! Redirecting to login...",
-        loading: false,
-      });
-
-      setTimeout(() => router.push("/login"), 1500);
-    } catch (err) {
-      setStatus({
-        error: err.message || "Something went wrong. Please try again.",
-        success: "",
-        loading: false,
-      });
+    if (!res.ok) {
+      throw new Error(data.error || "Registration failed");
     }
-  };
+
+    setStatus({
+      error: "",
+      success: "Registration successful! Redirecting to login...",
+      loading: false,
+    });
+
+    setTimeout(() => router.push("/login"), 1500);
+  } catch (err) {
+    setStatus({
+      error: err.message || "Something went wrong.",
+      success: "",
+      loading: false,
+    });
+  }
+};
+
 
   return (
     <div style={styles.page}>
@@ -241,3 +260,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+
