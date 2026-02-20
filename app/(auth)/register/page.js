@@ -160,6 +160,7 @@ export default function RegisterPage() {
         borderRadius: "4px",
         background: "#1f2937",
         overflow: "hidden",
+        transition: "width 0.3s ease-in-out",
       }}
     >
       <div
@@ -250,6 +251,7 @@ export default function RegisterPage() {
     </main>
   );
 }
+
 
 
 
