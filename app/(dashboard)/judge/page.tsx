@@ -1,29 +1,12 @@
-'use client';
-import { Input, Label, FormField } from "@/components/ui/form";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import JudgeDashboardClient from "./JudgeDashboardClient";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { 
-  Users, 
-  Calendar, 
-  Clock, 
-  Trophy, 
-  FileText, 
-  Star, 
-  CheckCircle,
-  AlertCircle,
-  ChevronRight,
-  Search,
-  Filter,
-  User,
-  MessageSquare,
-  BarChart3,
-  Eye,
-  Save
-} from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default function JudgeDashboard() {
-  const [user, setUser] = useState(null);
+  const { data: session, status } = useSession();
+  const user = session?.user;
   const [submissions, setSubmissions] = useState([]);
   const [completedEvaluations, setCompletedEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,103 +26,50 @@ export default function JudgeDashboard() {
   });
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      fetchJudgeData(parsedUser.id);
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchJudgeData = async (userId) => {
+  const fetchJudgeData = async () => {
     try {
-      // In a real app, this would fetch from API
-      // For now, using mock data
-      setTimeout(() => {
-        setSubmissions([
-          {
-            id: 1,
-            teamName: "Team Apollo",
-            projectName: "AI-Powered Analytics Platform",
-            event: "HackTech 2026",
-            submittedAt: "2026-02-14T10:30:00Z",
-            status: "pending",
-            members: 4,
-            description: "An AI-powered analytics platform that helps businesses make data-driven decisions."
-          },
-          {
-            id: 2,
-            teamName: "HyperLoopers",
-            projectName: "Sustainable Transport Solution",
-            event: "HackTech 2026",
-            submittedAt: "2026-02-13T15:45:00Z",
-            status: "pending",
-            members: 3,
-            description: "A revolutionary sustainable transport solution using magnetic levitation."
-          },
-          {
-            id: 3,
-            teamName: "EcoInnovators",
-            projectName: "Green Energy Grid",
-            event: "HackTech 2026",
-            submittedAt: "2026-02-12T09:00:00Z",
-            status: "pending",
-            members: 5,
-            description: "A smart grid system for efficient distribution of renewable energy."
-          },
-          {
-            id: 4,
-            teamName: "DataViz Wizards",
-            projectName: "Interactive Dashboard",
-            event: "HackTech 2026",
-            submittedAt: "2026-02-11T14:20:00Z",
-            status: "pending",
-            members: 4,
-            description: "Real-time data visualization dashboard for enterprise analytics."
-          }
-        ]);
-
-        setCompletedEvaluations([
-          {
-            id: 101,
-            teamName: "CloudNinjas",
-            projectName: "Cloud Optimization Tool",
-            score: 85,
-            evaluatedAt: "2026-02-10T11:00:00Z",
-            feedback: "Great innovation and presentation. Consider improving documentation."
-          },
-          {
-            id: 102,
-            teamName: "MobileFirst",
-            projectName: "Health Tracking App",
-            score: 78,
-            evaluatedAt: "2026-02-09T16:30:00Z",
-            feedback: "Good feasibility but needs more market research."
-          },
-          {
-            id: 103,
-            teamName: "BlockChainers",
-            projectName: "Supply Chain Tracker",
-            score: 92,
-            evaluatedAt: "2026-02-08T10:15:00Z",
-            feedback: "Excellent work! Very innovative solution with strong impact."
-          }
-        ]);
-
-        setLoading(false);
-      }, 800);
+      const res = await fetch("/api/judge/submissions");
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(data.pending || []);
+        setCompletedEvaluations(data.completed || []);
+      }
     } catch (error) {
       console.error("Error fetching judge data:", error);
+    } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchJudgeData();
+    } else if (status !== "loading") {
+      setLoading(false);
+    }
+  }, [status, user?.id]);
+
+
+
   const handleOpenEvaluation = (submission) => {
     setSelectedSubmission(submission);
+    setScores({ innovation: 0, feasibility: 0, presentation: 0, impact: 0, documentation: 0 });
+    setFeedback("");
+    setIsReadOnly(false);
+    setShowScoreModal(true);
+  };
+
+  const handleViewEvaluation = (evaluation) => {
+    setSelectedSubmission(evaluation);
+    if (evaluation.criteriaScores) {
+      setScores(evaluation.criteriaScores);
+    } else {
+      setScores({ innovation: 0, feasibility: 0, presentation: 0, impact: 0, documentation: 0 });
+    }
+    setFeedback(evaluation.feedback || "");
+    setIsReadOnly(true);
     setShowScoreModal(true);
   };
 
@@ -150,28 +80,38 @@ export default function JudgeDashboard() {
   const handleSubmitScore = async () => {
     if (!selectedSubmission) return;
 
+    setIsSubmitting(true);
     const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-    
-    // Create completed evaluation
-    const newEvaluation = {
-      id: Date.now(),
-      teamName: selectedSubmission.teamName,
-      projectName: selectedSubmission.projectName,
-      score: totalScore,
-      evaluatedAt: new Date().toISOString(),
-      feedback: feedback
-    };
 
-    // Remove from pending
-    setSubmissions(submissions.filter(s => s.id !== selectedSubmission.id));
-    // Add to completed
-    setCompletedEvaluations([newEvaluation, ...completedEvaluations]);
-    
-    showNotification("Score submitted successfully!", "success");
-    setShowScoreModal(false);
-    setScores({ innovation: 0, feasibility: 0, presentation: 0, impact: 0, documentation: 0 });
-    setFeedback("");
-    setSelectedSubmission(null);
+    try {
+      const res = await fetch(`/api/submissions/${selectedSubmission.id}/evaluate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          score: totalScore,
+          feedback,
+          criteriaScores: scores
+        }),
+      });
+
+      if (res.ok) {
+        showNotification("Score submitted successfully!", "success");
+        setShowScoreModal(false);
+        setScores({ innovation: 0, feasibility: 0, presentation: 0, impact: 0, documentation: 0 });
+        setFeedback("");
+        setSelectedSubmission(null);
+        // Refresh data
+        fetchJudgeData();
+      } else {
+        const data = await res.json();
+        showNotification(data.error || "Failed to submit score", "error");
+      }
+    } catch (error) {
+      console.error("Error submitting evaluation:", error);
+      showNotification("Failed to submit score", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const showNotification = (message, type) => {
@@ -219,11 +159,10 @@ export default function JudgeDashboard() {
     <div className="min-h-screen bg-slate-50">
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 ${
-          notification.type === "success" 
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-            : "bg-red-50 text-red-700 border border-red-200"
-        }`}>
+        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 ${notification.type === "success"
+          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          : "bg-red-50 text-red-700 border border-red-200"
+          }`}>
           {notification.type === "success" ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           {notification.message}
         </div>
@@ -266,7 +205,7 @@ export default function JudgeDashboard() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -278,13 +217,13 @@ export default function JudgeDashboard() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-500 text-sm font-medium">Average Score</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">
-                  {completedEvaluations.length > 0 
+                  {completedEvaluations.length > 0
                     ? Math.round(completedEvaluations.reduce((a, b) => a + b.score, 0) / completedEvaluations.length)
                     : 0}
                 </p>
@@ -294,13 +233,13 @@ export default function JudgeDashboard() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-500 text-sm font-medium">Top Score</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">
-                  {completedEvaluations.length > 0 
+                  {completedEvaluations.length > 0
                     ? Math.max(...completedEvaluations.map(e => e.score))
                     : 0}
                 </p>
@@ -321,21 +260,19 @@ export default function JudgeDashboard() {
             <div className="flex gap-8 px-6">
               <button
                 onClick={() => setActiveTab("pending")}
-                className={`py-4 border-b-2 font-medium transition-colors ${
-                  activeTab === "pending"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
+                className={`py-4 border-b-2 font-medium transition-colors ${activeTab === "pending"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+                  }`}
               >
                 Pending Reviews ({submissions.length})
               </button>
               <button
                 onClick={() => setActiveTab("completed")}
-                className={`py-4 border-b-2 font-medium transition-colors ${
-                  activeTab === "completed"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
+                className={`py-4 border-b-2 font-medium transition-colors ${activeTab === "completed"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+                  }`}
               >
                 Completed ({completedEvaluations.length})
               </button>
@@ -346,11 +283,13 @@ export default function JudgeDashboard() {
           <div className="p-4 border-b border-slate-200">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <FormField>
-  <Label>Field Name</Label>
-  <Input type="text" />
-</FormField>
-
+              <input
+                type="text"
+                placeholder="Search by team or project name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-lg border-2 focus:ring-2  text-sm text-black"
+              />
             </div>
           </div>
 
@@ -440,7 +379,10 @@ export default function JudgeDashboard() {
                             </div>
                             <p className="text-xs text-slate-500">Grade</p>
                           </div>
-                          <button className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors">
+                          <button
+                            onClick={() => handleViewEvaluation(evaluation)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors"
+                          >
                             <MessageSquare className="w-4 h-4" />
                             View
                           </button>
@@ -467,12 +409,14 @@ export default function JudgeDashboard() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="mb-6">
-              <h3 className="text-xl font-bold text-slate-900">Evaluate: {selectedSubmission.teamName}</h3>
+              <h3 className="text-xl font-bold text-slate-900">
+                {isReadOnly ? "Evaluation Details" : `Evaluate: ${selectedSubmission.teamName}`}
+              </h3>
               <p className="text-slate-500">{selectedSubmission.projectName}</p>
             </div>
 
             {/* Scoring Criteria */}
-            <div className="space-y-4 mb-6">
+            <div className={`space-y-4 mb-6 ${isReadOnly ? 'grid grid-cols-2 gap-4 space-y-0' : ''}`}>
               {[
                 { key: "innovation", label: "Innovation", max: 25 },
                 { key: "feasibility", label: "Feasibility", max: 25 },
@@ -480,16 +424,30 @@ export default function JudgeDashboard() {
                 { key: "impact", label: "Impact", max: 20 },
                 { key: "documentation", label: "Documentation", max: 10 }
               ].map((criteria) => (
-                <div key={criteria.key}>
-                  <div className="flex items-center justify-between mb-2">
+                <div key={criteria.key} className={isReadOnly ? "col-span-1" : ""}>
+                  <div className="flex items-center justify-between mb-1.5">
                     <label className="text-sm font-medium text-slate-700">{criteria.label}</label>
-                    <span className="text-sm text-slate-500">{scores[criteria.key]}/{criteria.max}</span>
+                    <span className="text-sm text-slate-500 font-mono">
+                      {scores[criteria.key] || 0}<span className="text-slate-300">/</span>{criteria.max}
+                    </span>
                   </div>
-                 <FormField>
-  <Label>Field Name</Label>
-  <Input type="text" />
-</FormField>
-
+                  {isReadOnly ? (
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 rounded-full"
+                        style={{ width: `${((scores[criteria.key] || 0) / criteria.max) * 100}%` }}
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type="range"
+                      min={0}
+                      max={criteria.max}
+                      value={scores[criteria.key] || 0}
+                      onChange={(e) => handleScoreChange(criteria.key, e.target.value)}
+                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -499,7 +457,7 @@ export default function JudgeDashboard() {
               <div className="flex items-center justify-between">
                 <span className="font-medium text-slate-700">Total Score</span>
                 <span className="text-2xl font-bold text-slate-900">
-                  {Object.values(scores).reduce((a, b) => a + b, 0)}/100
+                  {Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0)}/100
                 </span>
               </div>
             </div>
@@ -507,14 +465,16 @@ export default function JudgeDashboard() {
             {/* Feedback */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Feedback (Optional)
+                Feedback {isReadOnly ? "" : "(Optional)"}
               </label>
               <textarea
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Provide constructive feedback..."
+                disabled={isReadOnly}
+                className={`w-full px-4 py-2 text-black border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isReadOnly ? 'bg-slate-50 text-slate-600' : ''}`}
+                placeholder={isReadOnly ? "No feedback provided." : "Provide constructive feedback..."}
                 rows={4}
+                readOnly={isReadOnly}
               />
             </div>
 
@@ -525,18 +485,29 @@ export default function JudgeDashboard() {
                   setShowScoreModal(false);
                   setSelectedSubmission(null);
                 }}
-                className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                className={`flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors ${isReadOnly ? 'w-full' : ''}`}
               >
-                Cancel
+                {isReadOnly ? "Close" : "Cancel"}
               </button>
-              <button
-                onClick={handleSubmitScore}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                Submit Score
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={handleSubmitScore}
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Submit Score
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>

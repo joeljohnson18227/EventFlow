@@ -13,7 +13,7 @@ const registerSchema = z.object({
     name: z.string().min(2).max(50),
     email: z.string().email(),
     password: z.string().min(8).max(100),
-    role: z.enum(["admin", "participant", "mentor", "judge"]).optional(),
+    role: z.enum(["admin", "organizer", "participant", "mentor", "judge"]).optional(),
 });
 
 export async function POST(request) {
@@ -29,6 +29,7 @@ export async function POST(request) {
         const validation = registerSchema.safeParse(body);
 
         if (!validation.success) {
+            console.error("Validation failed:", validation.error.format());
             return NextResponse.json({ error: "Invalid input", details: validation.error.format() }, { status: 400 });
         }
 
@@ -45,24 +46,24 @@ export async function POST(request) {
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create new user
+        // Create new user - always default to participant role
         const user = await User.create({
             name,
             email,
             password: hashedPassword,
-            role: role || "participant",
+            role: "participant",
         });
 
         return NextResponse.json(
             { message: "User registered successfully", user: { email: user.email, name: user.name, role: user.role } },
             { status: 201 }
         );
-    }catch (error) {
-    console.error("REGISTER ERROR FULL:", error);
-    return NextResponse.json(
-        { error: error.message, stack: error.stack },
-        { status: 500 }
-    );
-}
+    } catch (error) {
+        console.error("REGISTER ERROR FULL:", error);
+        return NextResponse.json(
+            { error: "Registration failed" },
+            { status: 500 }
+        );
+    }
 
 }

@@ -1,32 +1,35 @@
 'use client';
-import { Input, Label, FormField } from "@/components/ui/form";
-
-import { useState, useEffect, use } from "react";
+import { Input, Label } from "@/components/ui/form";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { 
-  Users, 
-  Calendar, 
-  Clock, 
-  Trophy, 
-  FileText, 
-  MessageSquare, 
-  Plus, 
-  Copy, 
+import {
+  Users,
+  Calendar,
+  Clock,
+  Trophy,
+  MessageSquare,
+  Copy,
   Check,
-  ChevronRight,
-  Bell,
-  Target,
-  Zap,
   ExternalLink,
-  UserPlus,
-  User
+  User,
+  LayoutGrid,
+  Search
 } from "lucide-react";
 
 export default function ParticipantDashboard() {
-  const [user, setUser] = useState(null);
-  const [team, setTeam] = useState(null);
+  const { data: session, status } = useSession();
+  const user = session?.user;
+
+  // State for tabs
+  const [activeTab, setActiveTab] = useState("browse"); // "browse" | "joined"
+
+  // Data states
+  const [myTeams, setMyTeams] = useState([]); // Array of teams user is part of
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [inviteCodeCopied, setInviteCodeCopied] = useState(false);
@@ -34,49 +37,28 @@ export default function ParticipantDashboard() {
 
   // Form states
   const [newTeamName, setNewTeamName] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState(""); // For team creation
   const [joinCode, setJoinCode] = useState("");
 
-  // Get user ID from localStorage (set by login)
+  // Fetch data
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      fetchUserData(parsedUser.id);
-    } else {
+    if (status === "authenticated" && user?.id) {
+      fetchUserData(user.id);
+    } else if (status !== "loading") {
       setLoading(false);
     }
-  }, []);
+  }, [status, user?.id]);
 
   const fetchUserData = async (userId) => {
     try {
-      // Fetch user profile
-      const profileRes = await fetch("/api/auth/profile", {
-        headers: {
-          "x-user-id": userId
-        }
-      });
-      
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setUser(profileData.user);
-      }
-
-      // Fetch user's team
-      const teamRes = await fetch(`/api/teams?userId=${userId}`, {
-        headers: {
-          "x-user-id": userId
-        }
-      });
-      
+      // 1. Fetch user's teams
+      const teamRes = await fetch(`/api/teams?userId=${userId}`);
       if (teamRes.ok) {
         const teamData = await teamRes.json();
-        if (teamData.teams && teamData.teams.length > 0) {
-          setTeam(teamData.teams[0]);
-        }
+        setMyTeams(teamData.teams || []);
       }
 
-      // Fetch available events
+      // 2. Fetch available events
       const eventsRes = await fetch("/api/events");
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json();
@@ -91,36 +73,32 @@ export default function ParticipantDashboard() {
 
   const handleCreateTeam = async (e) => {
     e.preventDefault();
-    
-    if (!newTeamName.trim()) {
-      showNotification("Please enter a team name", "error");
+
+    if (!newTeamName.trim() || !selectedEventId) {
+      showNotification("Please enter a team name and select an event", "error");
       return;
     }
 
     try {
-      const userData = localStorage.getItem("user");
-      const parsedUser = JSON.parse(userData);
-      
       const res = await fetch("/api/teams", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": parsedUser.id
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newTeamName,
-          leaderId: parsedUser.id,
-          eventId: events[0]?._id // Use first event as default
+          leaderId: user?.id,
+          eventId: selectedEventId
         })
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        setTeam(data.team);
+        setMyTeams([data.team, ...myTeams]); // Add new team to list
         setShowCreateModal(false);
         setNewTeamName("");
+        setSelectedEventId("");
         showNotification("Team created successfully!", "success");
+        setActiveTab("joined"); // Switch to joined tab to show the new team
       } else {
         showNotification(data.error || "Failed to create team", "error");
       }
@@ -132,35 +110,26 @@ export default function ParticipantDashboard() {
 
   const handleJoinTeam = async (e) => {
     e.preventDefault();
-    
     if (!joinCode.trim()) {
       showNotification("Please enter an invite code", "error");
       return;
     }
 
     try {
-      const userData = localStorage.getItem("user");
-      const parsedUser = JSON.parse(userData);
-      
       const res = await fetch("/api/teams/join", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": parsedUser.id
-        },
-        body: JSON.stringify({
-          inviteCode: joinCode,
-          userId: parsedUser.id
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteCode: joinCode, userId: user?.id })
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        setTeam(data.team);
+        setMyTeams([data.team, ...myTeams]);
         setShowJoinModal(false);
         setJoinCode("");
         showNotification("Joined team successfully!", "success");
+        setActiveTab("joined"); // Switch to joined tab
       } else {
         showNotification(data.error || "Failed to join team", "error");
       }
@@ -170,9 +139,9 @@ export default function ParticipantDashboard() {
     }
   };
 
-  const copyInviteCode = () => {
-    if (team?.inviteCode) {
-      navigator.clipboard.writeText(team.inviteCode);
+  const copyInviteCode = (code) => {
+    if (code) {
+      navigator.clipboard.writeText(code);
       setInviteCodeCopied(true);
       showNotification("Invite code copied to clipboard!", "success");
       setTimeout(() => setInviteCodeCopied(false), 2000);
@@ -184,23 +153,15 @@ export default function ParticipantDashboard() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Calculate days until deadline
   const getDaysUntil = (date) => {
-    const eventDate = new Date(date);
-    const today = new Date();
-    const diffTime = eventDate.getTime() - today.getTime();
-
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    const diff = new Date(date).getTime() - new Date().getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading dashboard...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -209,373 +170,243 @@ export default function ParticipantDashboard() {
     <div className="min-h-screen bg-slate-50">
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 ${
-          notification.type === "success" 
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-            : "bg-red-50 text-red-700 border border-red-200"
-        }`}>
+        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 ${notification.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"
+          }`}>
           {notification.type === "success" ? <Check className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
           {notification.message}
         </div>
       )}
 
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div>
-              <h1 className="text-3xl font-bold">
-                Welcome back, {user?.name || "Participant"}!
-              </h1>
-              <p className="mt-2 text-blue-100 text-lg">
-                Track your progress, manage your team, and crush your goals
-              </p>
+              <h1 className="text-3xl font-bold">Welcome, {user?.name || "Participant"}</h1>
+              <p className="mt-1 text-blue-100">Find hackathons or manage your current teams.</p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-6 py-4">
-                <p className="text-blue-200 text-sm">Active Events</p>
-                <p className="text-2xl font-bold">{events.length}</p>
-              </div>
-              <Link
-                href="/profile"
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl hover:bg-white/20 transition-colors"
-              >
-                <User className="w-5 h-5" />
-                <span className="font-medium">Profile</span>
+            <div className="flex items-center gap-3">
+              <Link href="/profile" className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg hover:bg-white/20 transition-colors">
+                <User className="w-4 h-4" />
+                <span className="font-medium text-sm">Profile</span>
               </Link>
             </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex gap-8 mt-10">
+            <button
+              onClick={() => setActiveTab("browse")}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === "browse" ? "border-white text-white" : "border-transparent text-blue-200 hover:text-white"
+                }`}
+            >
+              <Search className="w-4 h-4" />
+              Available Events
+            </button>
+            <button
+              onClick={() => setActiveTab("joined")}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === "joined" ? "border-white text-white" : "border-transparent text-blue-200 hover:text-white"
+                }`}
+            >
+              <Trophy className="w-4 h-4" />
+              My Hackathons
+              {myTeams.length > 0 && (
+                <span className="bg-white/20 text-white text-xs py-0.5 px-2 rounded-full ml-1">
+                  {myTeams.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* No Team State */}
-        {!team ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Users className="w-10 h-10 text-blue-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">You don't have a team yet</h2>
-            <p className="text-slate-500 mb-8 max-w-md mx-auto">
-              Create a new team or join an existing one using an invite code to start participating in events.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Create Team
-              </button>
-              <button
-                onClick={() => setShowJoinModal(true)}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors"
-              >
-                <UserPlus className="w-5 h-5" />
-                Join Team
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {/* Team Overview Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Users className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">{team.name}</h3>
-                    <p className="text-sm text-slate-500">{team.event?.title || "No event assigned"}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-sm font-medium rounded-full">
-                    Active
-                  </span>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div>
-                    <p className="text-slate-500 text-sm mb-1">Team Leader</p>
-                    <p className="font-medium text-slate-900">{team.leader?.name || "Unknown"}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500 text-sm mb-1">Members</p>
-                    <p className="font-medium text-slate-900">{team.members?.length || 0} / 5</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500 text-sm mb-1">Invite Code</p>
-                    <div className="flex items-center gap-2">
-                      <code className="font-mono bg-slate-100 px-3 py-1 rounded text-slate-900 font-medium">
-                        {team.inviteCode}
-                      </code>
-                      <button
-                        onClick={copyInviteCode}
-                        className="p-1.5 hover:bg-slate-100 rounded transition-colors"
-                      >
-                        {inviteCodeCopied ? (
-                          <Check className="w-4 h-4 text-emerald-600" />
-                        ) : (
-                          <Copy className="w-4 h-4 text-slate-500" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Team Members */}
-                <div>
-                  <h4 className="font-medium text-slate-900 mb-3">Team Members</h4>
-                  <div className="flex flex-wrap gap-3">
-                    {team.leader && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
-                        <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
-                          <span className="text-blue-700 text-sm font-medium">
-                            {team.leader.name?.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">{team.leader.name}</p>
-                          <p className="text-xs text-blue-600">Leader</p>
-                        </div>
-                      </div>
-                    )}
-                    {team.members?.map((member, index) => (
-                      <div key={index} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
-                        <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
-                          <span className="text-slate-700 text-sm font-medium">
-                            {member.name?.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">{member.name}</p>
-                          <p className="text-xs text-slate-500">Member</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+        {/* BROWSE / AVAILABLE EVENTS TAB */}
+        {activeTab === "browse" && (
+          <div className="animate-in fade-in duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-slate-900">Upcoming Hackathons</h2>
             </div>
 
-            {/* Stats and Events Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Stats Cards */}
-              <div className="lg:col-span-2 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-500 text-sm font-medium">Days Active</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">7</p>
-                      </div>
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Clock className="w-6 h-6 text-blue-600" />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-500 text-sm font-medium">Submissions</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">3</p>
-                      </div>
-                      <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-emerald-600" />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-500 text-sm font-medium">Rank</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">#12</p>
-                      </div>
-                      <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                        <Trophy className="w-6 h-6 text-amber-600" />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-500 text-sm font-medium">Score</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">85</p>
-                      </div>
-                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <Zap className="w-6 h-6 text-purple-600" />
-                      </div>
-                    </div>
-                  </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
+              {events.length === 0 ? (
+                <div className="p-12 text-center text-slate-500">
+                  <Calendar className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                  <p>No upcoming events found at the moment.</p>
                 </div>
-
-                {/* Events Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-slate-900">Available Events</h3>
-                    <a href="/events" className="text-blue-600 text-sm font-medium hover:underline flex items-center gap-1">
-                      View All <ChevronRight className="w-4 h-4" />
-                    </a>
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {events.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-500">No events available</p>
-                      </div>
-                    ) : (
-                      events.slice(0, 3).map((event) => (
-                        <div key={event._id} className="p-6 hover:bg-slate-50 transition-colors">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-slate-900">{event.title}</h4>
-                              <p className="text-sm text-slate-500 mt-1 line-clamp-2">{event.description}</p>
-                              <div className="flex items-center gap-4 mt-3 text-sm text-slate-400">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="w-4 h-4" />
-                                  {new Date(event.startDate).toLocaleDateString()}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-4 h-4" />
-                                  {getDaysUntil(event.endDate)} days left
-                                </span>
-                              </div>
-                            </div>
-                            <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                              <ExternalLink className="w-5 h-5 text-slate-400" />
-                            </button>
+              ) : (
+                events.map((event) => {
+                  const isParticipating = myTeams.some(team => team.event?._id === event._id);
+                  return (
+                    <div key={event._id} className="p-6 hover:bg-slate-50 transition-colors group">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{event.title}</h3>
+                          <p className="text-sm text-slate-500 mt-1 line-clamp-2">{event.description}</p>
+                          <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-4 h-4 text-slate-400" />
+                              {getDaysUntil(event.endDate)} days left
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Users className="w-4 h-4 text-slate-400" />
+                              Max {event.maxTeamSize} per team
+                            </span>
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Sidebar */}
-              <div className="space-y-6">
-                {/* Upcoming Deadlines */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-red-500" />
-                    Upcoming Deadlines
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3 pb-4 border-b border-slate-100">
-                      <div className="w-12 h-12 bg-red-50 rounded-lg flex flex-col items-center justify-center">
-                        <span className="text-xs text-red-600 font-medium">FEB</span>
-                        <span className="text-lg font-bold text-red-700">20</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">Project Submission</p>
-                        <p className="text-sm text-slate-500">Submit your final project</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3 pb-4 border-b border-slate-100">
-                      <div className="w-12 h-12 bg-amber-50 rounded-lg flex flex-col items-center justify-center">
-                        <span className="text-xs text-amber-600 font-medium">FEB</span>
-                        <span className="text-lg font-bold text-amber-700">25</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">Pitch Video</p>
-                        <p className="text-sm text-slate-500">Upload 2-min pitch</p>
+                        <div className="flex items-center gap-3">
+                          <Link
+                            href={`/events/${event._id}`}
+                            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                          >
+                            Details
+                          </Link>
+                          <button
+                            disabled={isParticipating}
+                            onClick={() => {
+                              setSelectedEventId(event._id);
+                              setNewTeamName(`${user?.name}'s Team - ${event.title}`);
+                              setShowCreateModal(true);
+                            }}
+                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm ${isParticipating
+                              ? "bg-green-100 text-green-700 border border-green-200 cursor-not-allowed"
+                              : "text-white bg-blue-600 hover:bg-blue-700"
+                              }`}
+                          >
+                            {isParticipating ? (
+                              <span className="flex items-center gap-1">
+                                <Check className="w-4 h-4" />
+                                Already Applied
+                              </span>
+                            ) : "Apply Now"}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 bg-blue-50 rounded-lg flex flex-col items-center justify-center">
-                        <span className="text-xs text-blue-600 font-medium">MAR</span>
-                        <span className="text-lg font-bold text-blue-700">01</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">Final Presentation</p>
-                        <p className="text-sm text-slate-500">Demo day presentation</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-50 transition-colors group">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">Submit Project</p>
-                        <p className="text-sm text-slate-500">Upload your work</p>
-                      </div>
-                    </button>
-                    
-                    <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-50 transition-colors group">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                        <MessageSquare className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">Team Chat</p>
-                        <p className="text-sm text-slate-500">Message your team</p>
-                      </div>
-                    </button>
-                    
-                    <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-50 transition-colors group">
-                      <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                        <Bell className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">Notifications</p>
-                        <p className="text-sm text-slate-500">View updates</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </div>
+                  )
+                })
+              )}
             </div>
           </div>
         )}
+
+        {/* MY HACKATHONS TAB */}
+        {activeTab === "joined" && (
+          <div className="animate-in fade-in duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-slate-900">Participating Events</h2>
+              <button
+                onClick={() => setShowJoinModal(true)}
+                className="flex items-center gap-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors"
+              >
+                <User className="w-4 h-4" />
+                Join Existing Team
+              </button>
+            </div>
+
+            {myTeams.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 border-dashed p-12 text-center text-slate-500">
+                <Trophy className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                <h3 className="text-lg font-medium text-slate-900">No events yet</h3>
+                <p className="mt-1">You haven't joined any hackathons yet.</p>
+                <button
+                  onClick={() => setActiveTab("browse")}
+                  className="mt-4 text-blue-600 font-medium hover:underline"
+                >
+                  Browse available events
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myTeams.map((team) => (
+                  <div key={team._id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow flex flex-col h-full">
+                    <div className="mb-4">
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                          Participating
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-slate-900 mt-3 text-lg line-clamp-1" title={team.event?.title}>{team.event?.title || "Unknown Event"}</h3>
+                      <p className="text-slate-500 text-sm mt-1">Team: <span className="font-medium text-slate-700">{team.name}</span></p>
+                    </div>
+
+                    <div className="space-y-3 mb-6 flex-1">
+                      <div className="flex items-center text-sm text-slate-600 gap-2">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        <span>{team.members?.length || 0} Members</span>
+                      </div>
+                      <div className="flex items-center text-sm text-slate-600 gap-2">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <span>{team.event?.startDate ? new Date(team.event.startDate).toLocaleDateString() : "TBD"}</span>
+                      </div>
+                      <div className="flex items-center text-sm text-slate-600 gap-2 bg-slate-50 p-2 rounded-lg">
+                        <span className="text-xs font-medium text-slate-500 uppercase">Code:</span>
+                        <code className="font-mono text-slate-900 font-medium flex-1">
+                          {team.inviteCode}
+                        </code>
+                        <button
+                          onClick={() => copyInviteCode(team.inviteCode)}
+                          className="p-1 hover:bg-slate-200 rounded transition-colors"
+                          title="Copy Invite Code"
+                        >
+                          {inviteCodeCopied ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5 text-slate-500" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+                      <Link
+                        href={`/participant/teams/${team._id}`}
+                        className="py-2 text-sm font-medium text-center text-slate-700 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        Manage
+                      </Link>
+                      <Link
+                        href={`/events/${team.event?._id}`}
+                        className="py-2 text-sm font-medium text-center text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        Event Page
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Create Team Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Create a New Team</h3>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Create Team</h3>
             <form onSubmit={handleCreateTeam}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Team Name
-                </label>
-               <FormField>
-  <Label>Field Name</Label>
-  <Input type="text" />
-</FormField>
-
+                <Label className="block text-sm font-medium text-slate-700 mb-2">Event</Label>
+                <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 font-medium">
+                  {events.find(e => e._id === selectedEventId)?.title || "Selected Event"}
+                </div>
               </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Create Team
-                </button>
+              <div className="mb-4">
+                <Label className="block text-sm font-medium text-slate-700 mb-2">Team Name</Label>
+                <Input
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="e.g. Code Wizards"
+                  required
+                  className="focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">Create Team</button>
               </div>
             </form>
           </div>
@@ -585,33 +416,22 @@ export default function ParticipantDashboard() {
       {/* Join Team Modal */}
       {showJoinModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
             <h3 className="text-xl font-bold text-slate-900 mb-4">Join a Team</h3>
             <form onSubmit={handleJoinTeam}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Invite Code
-                </label>
-             <FormField>
-  <Label>Field Name</Label>
-  <Input type="text" />
-</FormField>
-
+                <Label className="block text-sm font-medium text-slate-700 mb-2">Invite Code</Label>
+                <Input
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  required
+                  className="focus:ring-2 focus:ring-blue-500"
+                />
               </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowJoinModal(false)}
-                  className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Join Team
-                </button>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setShowJoinModal(false)} className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">Join Team</button>
               </div>
             </form>
           </div>

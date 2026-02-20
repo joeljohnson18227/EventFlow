@@ -1,25 +1,35 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db-connect";
 import User from "@/models/User";
+import { auth } from "@/lib/auth";
 
 // GET current user profile
-export async function GET(request) {
+export async function GET() {
   try {
-    await dbConnect();
-    
-    const userId = request.headers.get("x-user-id");
-    
-    if (!userId) {
+    const session = await auth();
+
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
-    const user = await User.findById(userId).select("-password");
-    
+
+    await dbConnect();
+
+    const userId = session.user.id;
+    const user = await User.findById(userId).select("-password").lean();
+
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    
-    return NextResponse.json({ user });
+
+    // Convert MongoDB timestamps to JSON-serializable format
+    const userResponse = {
+      ...user,
+      _id: user._id.toString(),
+      createdAt: user.createdAt ? user.createdAt.toISOString() : null,
+      updatedAt: user.updatedAt ? user.updatedAt.toISOString() : null
+    };
+
+    return NextResponse.json({ user: userResponse });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
@@ -28,27 +38,60 @@ export async function GET(request) {
 
 // UPDATE user profile
 export async function PUT(request) {
+  const ip = request.headers.get("x-forwarded-for") || "anonymous";
+  const { isRateLimited } = limiter.check(10, ip);
+
+  if (isRateLimited) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
-    await dbConnect();
-    
-    const userId = request.headers.get("x-user-id");
-    
-    if (!userId) {
+    const session = await auth();
+
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
+
+    await dbConnect();
+
+    const userId = session.user.id;
     const body = await request.json();
-    const { name, bio } = body;
+
+    const validation = profileSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: validation.error.format() },
+        { status: 400 }
+      );
+    }
     
+    const { name, bio, avatar } = validation.data;
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (bio !== undefined) updateData.bio = bio;
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
+
     const user = await User.findByIdAndUpdate(
       userId,
-      { name, bio },
+      updateData,
       { new: true }
-    ).select("-password");
-    
-    return NextResponse.json({ user });
+    ).select("-password").lean();
+
+    // Convert MongoDB timestamps to JSON-serializable format
+    const userResponse = {
+      ...user,
+      _id: user._id.toString(),
+      createdAt: user.createdAt ? user.createdAt.toISOString() : null,
+      updatedAt: user.updatedAt ? user.updatedAt.toISOString() : null
+    };
+
+    return NextResponse.json({ user: userResponse });
   } catch (error) {
     console.error("Error updating profile:", error);
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
   }
 }
+
