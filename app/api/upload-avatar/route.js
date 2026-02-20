@@ -4,6 +4,7 @@ import path from "path";
 import connectDB from "@/lib/db-connect";
 import User from "@/models/User";
 import { auth } from "@/auth";
+import sharp from "sharp";
 
 export async function POST(req) {
   try {
@@ -41,10 +42,17 @@ export async function POST(req) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    const filename = `${Date.now()}-${file.name}`;
+    const filename = `${Date.now()}-avatar.webp`;
     const filepath = path.join(uploadDir, filename);
 
-    fs.writeFileSync(filepath, buffer);
+    // Compress and resize image using sharp
+    await sharp(buffer)
+      .resize(300, 300, {
+        fit: "cover",
+        position: "center"
+      })
+      .webp({ quality: 80 })
+      .toFile(filepath);
 
     const fileUrl = `/uploads/${filename}`;
 
