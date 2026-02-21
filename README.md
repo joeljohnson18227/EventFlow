@@ -44,7 +44,7 @@ Most tech events rely on:
 - Error-prone spreadsheets  
 - No reusable infrastructure  
 
-This causes confusion, unfair judging, and poor participant experience.
+This results in confusion, inconsistent evaluation, and a poor participant experience.
 
 **EventFlow solves this with a reusable, modular event engine.**
 
@@ -190,6 +190,7 @@ See `LICENSE` for details.
 
 ⭐ Star the repo if you like it  
 🤝 Contributions are welcome  
+
 
 
 
