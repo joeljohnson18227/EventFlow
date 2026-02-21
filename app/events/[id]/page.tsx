@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Users, Clock, Check } from "lucide-react";
+import { ArrowLeft, Calendar, Users, Clock, Check, Link2, Twitter, Linkedin } from "lucide-react";
 
 export default function EventDetailsPage() {
     const params = useParams();
@@ -21,6 +21,24 @@ export default function EventDetailsPage() {
     const { data: session } = useSession();
     const [event, setEvent] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [copiedLink, setCopiedLink] = useState(false);
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(window.location.href);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+    };
+
+    const handleShareTwitter = () => {
+        const text = encodeURIComponent(`Check out this event: ${event?.title}`);
+        const url = encodeURIComponent(window.location.href);
+        window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, "_blank");
+    };
+
+    const handleShareLinkedIn = () => {
+        const url = encodeURIComponent(window.location.href);
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, "_blank");
+    };
 
     useEffect(() => {
         if (pageId) {
@@ -93,6 +111,35 @@ export default function EventDetailsPage() {
                                 </div>
                             </div>
                             {/* In the future, Apply button can logic specifically here too */}
+                        </div>
+
+                        {/* Share This Event */}
+                        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-100">
+                            <span className="text-sm text-slate-500 font-medium">Share:</span>
+                            <button
+                                onClick={handleCopyLink}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                                title="Copy link"
+                            >
+                                {copiedLink ? <Check className="w-4 h-4 text-green-500" /> : <Link2 className="w-4 h-4" />}
+                                {copiedLink ? "Copied!" : "Copy Link"}
+                            </button>
+                            <button
+                                onClick={handleShareTwitter}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:border-sky-400 hover:text-sky-500 transition-colors"
+                                title="Share on Twitter/X"
+                            >
+                                <Twitter className="w-4 h-4" />
+                                Twitter
+                            </button>
+                            <button
+                                onClick={handleShareLinkedIn}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:border-blue-600 hover:text-blue-700 transition-colors"
+                                title="Share on LinkedIn"
+                            >
+                                <Linkedin className="w-4 h-4" />
+                                LinkedIn
+                            </button>
                         </div>
 
                         <div className="prose prose-slate max-w-none mt-8">
