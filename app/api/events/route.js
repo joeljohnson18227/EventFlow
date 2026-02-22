@@ -95,8 +95,8 @@ export async function POST(request) {
     } = body;
 
     // Basic validation
-    if (!title || !startDate || !endDate || !registrationDeadline) {
-      return NextResponse.json({ error: "Missing required fields (title, startDate, endDate, registrationDeadline)" }, { status: 400 });
+    if (!title || !description || !startDate || !endDate || !registrationDeadline) {
+      return NextResponse.json({ error: "Missing required fields (title, description, startDate, endDate, registrationDeadline)" }, { status: 400 });
     }
 
     const event = await Event.create({

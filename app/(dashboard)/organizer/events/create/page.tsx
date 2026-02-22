@@ -120,12 +120,13 @@ export default function CreateEventPage() {
                                 />
                             </div>
                             <div>
-                                <Label className="mb-2 block text-sm font-semibold text-slate-700">Description</Label>
+                                <Label className="mb-2 block text-sm font-semibold text-slate-700">Description <span className="text-red-500">*</span></Label>
                                 <textarea
                                     name="description"
                                     value={formData.description}
                                     onChange={handleChange}
                                     rows={4}
+                                    required
                                     className="w-full rounded-xl border border-slate-200 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none text-black"
                                     placeholder="Describe the goal and theme of your event..."
                                 />
