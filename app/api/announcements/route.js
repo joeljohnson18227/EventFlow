@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db-connect";
 import Announcement from "@/models/Announcement";
 import { auth } from "@/lib/auth";
+import { z } from "zod";
+
+const announcementSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200, "Title is too long"),
+  message: z.string().min(1, "Message is required"),
+  roleTarget: z.enum(["all", "participants", "judges", "mentors"]).default("all"),
+  expiresAt: z.string().optional().refine(
+    (val) => !val || !isNaN(Date.parse(val)),
+    { message: "Invalid date format" }
+  ),
+});
 
 /* GET — Fetch active announcements */
 export async function GET() {
@@ -53,8 +64,17 @@ export async function POST(req) {
       );
     }
     
-    const announcement = await Announcement.create({
+    const announcementData = {
       ...validation.data,
+    };
+    
+    // Convert expiresAt string to Date if provided
+    if (validation.data.expiresAt) {
+      announcementData.expiresAt = new Date(validation.data.expiresAt);
+    }
+    
+    const announcement = await Announcement.create({
+      ...announcementData,
       createdBy: session.user.id,
     });
 
