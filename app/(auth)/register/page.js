@@ -249,9 +249,14 @@ if (!res.ok) {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  I am a
-                </label>
+               <label
+  className="block text-sm font-medium text-slate-300 mb-1"
+  title={`Organizer: Creates and manages events
+Mentor: Guides participants
+Judge: Evaluates submissions`}
+>
+  I am a
+</label>
                 <select
                   name="role"
                   value={formData.role}
@@ -290,10 +295,16 @@ if (!res.ok) {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={status.loading}
-              className="btn-neon w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold tracking-wide text-sm focus:outline-none focus:ring-2 focus:ring-neon-cyan focus:ring-offset-2 focus:ring-offset-space-900"
+<button
+  type="submit"
+  disabled={status.loading}
+  title={
+    status.loading
+      ? "Please wait..."
+      : "Please fill all required fields"
+  }
+  className="btn-neon w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold tracking-wide text-sm focus:outline-none focus:ring-2 focus:ring-neon-cyan focus:ring-offset-2 focus:ring-offset-space-900"
+
               aria-describedby={status.loading ? "submitting-status" : undefined}
             >
               {status.loading ? (

@@ -159,11 +159,16 @@ if (result?.error) {
               </div>
             )}
 
-            <button
-              ref={submitButtonRef}
-              type="submit"
-              disabled={loading}
-              className="btn-neon w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold tracking-wide text-sm focus:outline-none focus:ring-2 focus:ring-neon-cyan focus:ring-offset-2 focus:ring-offset-space-900"
+           <button
+  type="submit"
+  disabled={loading}
+  title={
+    loading
+      ? "Signing in..."
+      : "Please fill all required fields"
+  }
+  className="btn-neon w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold tracking-wide text-sm"
+
               aria-describedby={loading ? "submitting-status" : undefined}
             >
               {loading ? "Signing in..." : "Sign In"}
