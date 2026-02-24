@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,8 +8,6 @@ import { ArrowRight, ArrowLeft } from "lucide-react";
 import { Input, Label, FormField } from "@/components/ui/form";
 import Navbar from "@/components/common/Navbar";
 import Aurora from "@/components/common/Aurora";
-import useFocusTrap from "@/components/common/useFocusTrap";
-import { handleFormKeyDown } from "@/components/common/keyboardNavigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,18 +15,6 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const formRef = useRef(null);
-  const emailInputRef = useRef(null);
-  const passwordInputRef = useRef(null);
-  const submitButtonRef = useRef(null);
-
-  // Focus trap for the form when needed
-  useFocusTrap({
-    isOpen: true,
-    containerRef: formRef,
-    onClose: () => {}, // No-op for page-level forms
-    initialFocusRef: emailInputRef,
-  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,19 +46,6 @@ if (result?.error) {
 } finally {
       setLoading(false);
     }
-  };
-
-  // Handle form keyboard navigation
-  const onFormKeyDown = (e) => {
-    handleFormKeyDown(e, {
-      onSubmit: handleSubmit,
-      onCancel: () => {
-        // Clear form on Escape
-        setEmail("");
-        setPassword("");
-      },
-      submitKey: 'Enter',
-    });
   };
 
   return (
@@ -111,9 +84,7 @@ if (result?.error) {
             </div>
           </div>
           <form 
-            ref={formRef}
             onSubmit={handleSubmit} 
-            onKeyDown={onFormKeyDown}
             className="space-y-6"
             role="form"
             aria-label="Login form"
@@ -121,7 +92,6 @@ if (result?.error) {
             <FormField>
               <Label>Email</Label>
               <Input
-                ref={emailInputRef}
                 id="email"
                 type="email"
                 placeholder="you@example.com"
@@ -136,7 +106,6 @@ if (result?.error) {
             <FormField>
               <Label>Password</Label>
               <Input
-                ref={passwordInputRef}
                 id="password"
                 type="password"
                 placeholder="••••••••"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -8,8 +8,6 @@ import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Aurora from "@/components/common/Aurora";
 import { getPasswordStrength } from "@/utils/passwordStrength";
-import useFocusTrap from "@/components/common/useFocusTrap";
-import { handleFormKeyDown } from "@/components/common/keyboardNavigation";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -26,9 +24,6 @@ export default function RegisterPage() {
     success: "",
     loading: false,
   });
-
-  const formRef = useRef(null);
-  const nameInputRef = useRef(null);
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -75,32 +70,8 @@ if (!res.ok) {
   });
 }
   };
-
-  // Handle form keyboard navigation
-  const handleFormKeyDownEvent = (e) => {
-    handleFormKeyDown(e, {
-      onSubmit: handleSubmit,
-      onCancel: () => {
-        // Clear form on Escape
-        setFormData({
-          name: "",
-          email: "",
-          password: "",
-          role: "participant",
-        });
-      },
-      submitKey: 'Enter',
-    });
-  };
+ 
   const passwordStrength = getPasswordStrength(formData.password);
-
-  // Focus trap for the form
-  useFocusTrap({
-    isOpen: true,
-    containerRef: formRef,
-    onClose: () => {},
-    initialFocusRef: nameInputRef,
-  });
 
 
 
@@ -139,9 +110,7 @@ if (!res.ok) {
           </div>
 
           <form 
-            ref={formRef}
             onSubmit={handleSubmit} 
-            onKeyDown={handleFormKeyDownEvent}
             className="space-y-6"
             role="form"
             aria-label="Registration form"
@@ -153,7 +122,6 @@ if (!res.ok) {
                   Full Name
                 </label>
                 <input
-                  ref={nameInputRef}
                   id="name"
                   type="text"
                   name="name"
