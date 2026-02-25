@@ -1,12 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import { ArrowRight, ArrowLeft, Loader2, Github } from "lucide-react";
 import Navbar from "@/components/common/Navbar";
 import Aurora from "@/components/common/Aurora";
+
+// Component that handles post-login redirect based on role
+function LoginRedirectHandler() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [hasRedirected, setHasRedirected] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user && !hasRedirected) {
+      setHasRedirected(true);
+      const userRole = session.user.role || 'participant';
+      const redirectMap = {
+        admin: '/admin',
+        organizer: '/organizer',
+        judge: '/judge',
+        mentor: '/mentor',
+        participant: '/participant',
+      };
+      router.push(redirectMap[userRole] || '/participant');
+      router.refresh();
+    }
+  }, [session, status, router, hasRedirected]);
+
+  return null;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,16 +71,12 @@ export default function LoginPage() {
         throw new Error("Invalid credentials. Please check your email and password.");
       }
 
+      // After successful login, useSession will handle the redirect
       setStatus({
         error: "",
         success: "Login successful! Redirecting...",
         loading: false,
       });
-
-      // The middleware or auth config usually handles role-based routing
-      // If not, we can push to a generic dashboard or let it refresh
-      router.push("/participant");
-      router.refresh();
 
     } catch (err: any) {
       setStatus({
@@ -69,6 +90,7 @@ export default function LoginPage() {
   return (
     <main className="bg-space-900 relative min-h-screen">
       <Navbar />
+      <LoginRedirectHandler />
 
       <div className="fixed inset-0 z-0 pointer-events-none">
         <Aurora
@@ -177,7 +199,8 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => {
                   setSocialLoading(true);
-                  signIn("google", { callbackUrl: "/participant" });
+                  // Use "/" as callback - useSession will handle role-based redirect
+                  signIn("google", { callbackUrl: "/" });
                 }}
                 disabled={socialLoading}
                 title={socialLoading ? "Signing in..." : undefined}
@@ -196,7 +219,8 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => {
                   setSocialLoading(true);
-                  signIn("github", { callbackUrl: "/participant" });
+                  // Use "/" as callback - useSession will handle role-based redirect
+                  signIn("github", { callbackUrl: "/" });
                 }}
                 disabled={socialLoading}
                 title={socialLoading ? "Signing in..." : undefined}
