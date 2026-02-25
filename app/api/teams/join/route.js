@@ -17,7 +17,7 @@ const joinTeamSchema = z.object({
 // JOIN a team using invite code
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for") || "anonymous";
-  const { isRateLimited } = limiter.check(10, ip); // 10 requests per minute per IP
+  const { isRateLimited } = await limiter.check(10, ip); // 10 requests per minute per IP
 
   if (isRateLimited) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });

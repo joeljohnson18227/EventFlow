@@ -18,7 +18,7 @@ const registerSchema = z.object({
 
 export async function POST(request) {
     const ip = request.headers.get("x-forwarded-for") || "anonymous";
-    const { isRateLimited } = limiter.check(5, ip); // 5 requests per minute per IP
+    const { isRateLimited } = await limiter.check(5, ip); // 5 requests per minute per IP
 
     if (isRateLimited) {
         return NextResponse.json(
@@ -49,10 +49,11 @@ export async function POST(request) {
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-return NextResponse.json(
-  { message: "User already exists" },
-  { status: 400 }
-);        }
+            return NextResponse.json(
+                { message: "User already exists" },
+                { status: 400 }
+            );
+        }
 
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -72,9 +73,9 @@ return NextResponse.json(
     } catch (error) {
         console.error("REGISTER ERROR FULL:", error);
         return NextResponse.json(
-  { message: "Internal server error during registration" },
-  { status: 500 }
-);
+            { message: "Internal server error during registration" },
+            { status: 500 }
+        );
     }
 
 }

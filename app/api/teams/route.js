@@ -62,7 +62,7 @@ export async function GET(request) {
 // CREATE a new team
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for") || "anonymous";
-  const { isRateLimited } = limiter.check(5, ip); // 5 requests per minute per IP
+  const { isRateLimited } = await limiter.check(5, ip); // 5 requests per minute per IP
 
   if (isRateLimited) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
