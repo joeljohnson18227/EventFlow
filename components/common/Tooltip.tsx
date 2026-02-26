@@ -13,17 +13,25 @@ import { cn } from "@/utils/cn";
  * @param {string} position - The position of the tooltip relative to the trigger (top, bottom, left, right).
  * @param {string} className - Additional CSS classes for the tooltip container.
  */
+interface TooltipProps {
+  children: React.ReactNode;
+  content: string;
+  position?: "top" | "bottom" | "left" | "right";
+  delay?: number;
+  className?: string;
+}
+
 const Tooltip = ({ 
   children, 
   content, 
   position = "top", 
   delay = 200,
   className 
-}) => {
+}: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
-  const triggerRef = useRef(null);
-  const timeoutRef = useRef(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const showTooltip = () => {
     timeoutRef.current = setTimeout(() => {
@@ -75,14 +83,14 @@ const Tooltip = ({
     };
   }, []);
 
-  const positionClasses = {
+  const positionClasses: Record<string, string> = {
     top: "-translate-x-1/2 -translate-y-full mb-2",
     bottom: "-translate-x-1/2 translate-y-0 mt-2",
     left: "-translate-x-full -translate-y-1/2 mr-2",
     right: "translate-x-0 -translate-y-1/2 ml-2",
   };
 
-  const arrowClasses = {
+  const arrowClasses: Record<string, string> = {
     top: "bottom-[-4px] left-1/2 -translate-x-1/2 border-t-slate-800 border-x-transparent border-t-4",
     bottom: "top-[-4px] left-1/2 -translate-x-1/2 border-b-slate-800 border-x-transparent border-b-4",
     left: "right-[-4px] top-1/2 -translate-y-1/2 border-l-slate-800 border-y-transparent border-l-4",

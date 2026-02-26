@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, FileText, Calendar, Clock, ChevronRight, ExternalLink, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from 'react';
 import Link from "next/link";
 import Tooltip from "@/components/common/Tooltip";
 
