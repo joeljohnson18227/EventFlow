@@ -7,10 +7,8 @@ const EvaluationSchema = new mongoose.Schema({
     feedback: { type: String },
     criteriaScores: {
         innovation: { type: Number, default: 0 },
-        feasibility: { type: Number, default: 0 },
-        presentation: { type: Number, default: 0 },
-        impact: { type: Number, default: 0 },
-        documentation: { type: Number, default: 0 }
+        technicalDepth: { type: Number, default: 0 },
+        impact: { type: Number, default: 0 }
     },
     evaluatedAt: { type: Date, default: Date.now }
 });

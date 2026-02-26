@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { calculateWeightedScore, DEFAULT_SCORING_WEIGHTS } from "@/utils/scoring";
 
 interface User {
   id: string;
@@ -46,14 +47,18 @@ export default function JudgeDashboardClient({ user }: Props) {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [scores, setScores] = useState({
     innovation: 0,
-    execution: 0,
-    presentation: 0,
+    technicalDepth: 0,
     impact: 0,
   });
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const criteria = [
+    { key: "innovation", label: "Innovation" },
+    { key: "technicalDepth", label: "Technical Depth" },
+    { key: "impact", label: "Impact" },
+  ];
 
   useEffect(() => {
     fetchData();
@@ -112,7 +117,7 @@ export default function JudgeDashboardClient({ user }: Props) {
       if (res.ok) {
         setMessage({ type: "success", text: "Evaluation submitted successfully!" });
         setSelectedSubmission(null);
-        setScores({ innovation: 0, execution: 0, presentation: 0, impact: 0 });
+        setScores({ innovation: 0, technicalDepth: 0, impact: 0 });
         setFeedback("");
       } else {
         setMessage({ type: "error", text: data.error || "Failed to submit evaluation" });
@@ -204,17 +209,17 @@ export default function JudgeDashboardClient({ user }: Props) {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  {Object.keys(scores).map((criteria) => (
-                    <div key={criteria}>
-                      <label className="block text-sm font-medium mb-2 capitalize">
-                        {criteria} (0-10)
+                  {criteria.map((criteria) => (
+                    <div key={criteria.key}>
+                      <label className="block text-sm font-medium mb-2">
+                        {criteria.label} (0-10)
                       </label>
                       <input
                         type="number"
-                        name={criteria}
+                        name={criteria.key}
                         min="0"
                         max="10"
-                        value={scores[criteria as keyof typeof scores]}
+                        value={scores[criteria.key as keyof typeof scores]}
                         onChange={handleScoreChange}
                         className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white focus:outline-none focus:border-indigo-500"
                         required
@@ -233,7 +238,13 @@ export default function JudgeDashboardClient({ user }: Props) {
                   ></textarea>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-300">
+                    Total Score:{" "}
+                    <span className="font-semibold text-white">
+                      {calculateWeightedScore(scores, DEFAULT_SCORING_WEIGHTS).toFixed(1)}/100
+                    </span>
+                  </div>
                   <button
                     type="submit"
                     disabled={submitting}

@@ -80,6 +80,12 @@ const statusColors = {
   draft: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
 };
 
+const defaultScoringWeights = {
+  innovation: 40,
+  technicalDepth: 30,
+  impact: 30,
+};
+
 export default function AdminDashboardClient({ user }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -104,6 +110,7 @@ export default function AdminDashboardClient({ user }) {
     startDate: "",
     endDate: "",
     status: "draft",
+    scoringWeights: defaultScoringWeights,
     modules: {
       judging: true,
       certificates: true,
@@ -231,8 +238,22 @@ export default function AdminDashboardClient({ user }) {
     }));
   };
 
+  const handleScoringWeightChange = (field, value) => {
+    setEventFormData((prev) => ({
+      ...prev,
+      scoringWeights: {
+        ...prev.scoringWeights,
+        [field]: Number(value),
+      },
+    }));
+  };
+
   const handleEventSubmit = async (e) => {
     e.preventDefault();
+    if (!isScoringWeightValid) {
+      alert("Scoring weights must total 100%.");
+      return;
+    }
     try {
       const url = editingEvent
         ? `/api/events/${editingEvent._id}`
@@ -258,6 +279,7 @@ export default function AdminDashboardClient({ user }) {
           startDate: "",
           endDate: "",
           status: "draft",
+          scoringWeights: defaultScoringWeights,
           modules: {
             judging: true,
             certificates: true,
@@ -282,6 +304,7 @@ export default function AdminDashboardClient({ user }) {
       startDate: event.startDate ? new Date(event.startDate).toISOString().split('T')[0] : "",
       endDate: event.endDate ? new Date(event.endDate).toISOString().split('T')[0] : "",
       status: event.status,
+      scoringWeights: event.scoringWeights || defaultScoringWeights,
       modules: event.modules || {
         judging: true,
         certificates: true,
@@ -486,6 +509,12 @@ export default function AdminDashboardClient({ user }) {
       )}
     </div>
   );
+
+  const scoringWeightTotal = Object.values(eventFormData.scoringWeights || defaultScoringWeights).reduce(
+    (sum, value) => sum + (Number(value) || 0),
+    0
+  );
+  const isScoringWeightValid = Math.round(scoringWeightTotal) === 100;
 
   const roleDistributionColors = {
     admin: "bg-red-500",
@@ -799,6 +828,7 @@ export default function AdminDashboardClient({ user }) {
                   startDate: "",
                   endDate: "",
                   status: "draft",
+                  scoringWeights: defaultScoringWeights,
                   modules: {
                     judging: true,
                     certificates: true,
@@ -881,6 +911,37 @@ export default function AdminDashboardClient({ user }) {
                   ></textarea>
                 </div>
 
+                <div className="mb-6">
+                  <h4 className="text-md font-semibold mb-3 text-slate-300 border-b border-slate-700/50 pb-2">
+                    Scoring Weights
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      { key: "innovation", label: "Innovation" },
+                      { key: "technicalDepth", label: "Technical Depth" },
+                      { key: "impact", label: "Impact" },
+                    ].map((weight) => (
+                      <div key={weight.key}>
+                        <label className="block text-sm font-medium mb-2 text-slate-300">
+                          {weight.label} (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={eventFormData.scoringWeights?.[weight.key] ?? defaultScoringWeights[weight.key]}
+                          onChange={(e) => handleScoringWeightChange(weight.key, e.target.value)}
+                          className="w-full bg-slate-900/50 border border-slate-600/50 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          required
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className={`mt-3 text-sm ${isScoringWeightValid ? "text-slate-400" : "text-red-400"}`}>
+                    Total: {scoringWeightTotal}% {isScoringWeightValid ? "" : "(must equal 100%)"}
+                  </p>
+                </div>
+
                 {/* Module Toggles */}
                 <div className="mb-6">
                   <h4 className="text-md font-semibold mb-3 text-slate-300 border-b border-slate-700/50 pb-2">
@@ -914,7 +975,12 @@ export default function AdminDashboardClient({ user }) {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                    disabled={!isScoringWeightValid}
+                    className={`px-5 py-2.5 text-white rounded-lg transition-colors ${
+                      isScoringWeightValid
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "bg-slate-600 cursor-not-allowed"
+                    }`}
                   >
                     {editingEvent ? "Update Event" : "Create Event"}
                   </button>

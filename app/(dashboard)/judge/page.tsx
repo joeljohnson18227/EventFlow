@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import JudgeDashboardClient from "./JudgeDashboardClient";
 import useFocusTrap from "@/components/common/useFocusTrap";
 import { handleTabListKeyDown } from "@/components/common/keyboardNavigation";
+import { calculateWeightedScore, DEFAULT_SCORING_WEIGHTS, normalizeWeights } from "@/utils/scoring";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,11 +28,10 @@ export default function JudgeDashboard() {
   // Score form state
   const [scores, setScores] = useState({
     innovation: 0,
-    feasibility: 0,
-    presentation: 0,
-    impact: 0,
-    documentation: 0
+    technicalDepth: 0,
+    impact: 0
   });
+  const [scoringWeights, setScoringWeights] = useState(normalizeWeights(DEFAULT_SCORING_WEIGHTS));
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -73,9 +73,13 @@ export default function JudgeDashboard() {
 
 
 
+  const getWeightsForSubmission = (submission) =>
+    normalizeWeights(submission?.scoringWeights || DEFAULT_SCORING_WEIGHTS);
+
   const handleOpenEvaluation = (submission) => {
     setSelectedSubmission(submission);
-    setScores({ innovation: 0, feasibility: 0, presentation: 0, impact: 0, documentation: 0 });
+    setScores({ innovation: 0, technicalDepth: 0, impact: 0 });
+    setScoringWeights(getWeightsForSubmission(submission));
     setFeedback("");
     setIsReadOnly(false);
     setShowScoreModal(true);
@@ -84,24 +88,33 @@ export default function JudgeDashboard() {
   const handleViewEvaluation = (evaluation) => {
     setSelectedSubmission(evaluation);
     if (evaluation.criteriaScores) {
-      setScores(evaluation.criteriaScores);
+      setScores({
+        innovation: evaluation.criteriaScores.innovation || 0,
+        technicalDepth:
+          evaluation.criteriaScores.technicalDepth ||
+          evaluation.criteriaScores.feasibility ||
+          evaluation.criteriaScores.execution ||
+          0,
+        impact: evaluation.criteriaScores.impact || 0
+      });
     } else {
-      setScores({ innovation: 0, feasibility: 0, presentation: 0, impact: 0, documentation: 0 });
+      setScores({ innovation: 0, technicalDepth: 0, impact: 0 });
     }
+    setScoringWeights(getWeightsForSubmission(evaluation));
     setFeedback(evaluation.feedback || "");
     setIsReadOnly(true);
     setShowScoreModal(true);
   };
 
   const handleScoreChange = (field, value) => {
-    setScores({ ...scores, [field]: parseInt(value) });
+    setScores({ ...scores, [field]: Number(value) });
   };
 
   const handleSubmitScore = async () => {
     if (!selectedSubmission) return;
 
     setIsSubmitting(true);
-    const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
+    const totalScore = calculateWeightedScore(scores, scoringWeights);
 
     try {
       const res = await fetch(`/api/submissions/${selectedSubmission.id}/evaluate`, {
@@ -117,7 +130,7 @@ export default function JudgeDashboard() {
       if (res.ok) {
         showNotification("Score submitted successfully!", "success");
         setShowScoreModal(false);
-        setScores({ innovation: 0, feasibility: 0, presentation: 0, impact: 0, documentation: 0 });
+        setScores({ innovation: 0, technicalDepth: 0, impact: 0 });
         setFeedback("");
         setSelectedSubmission(null);
         // Refresh data
@@ -472,15 +485,15 @@ export default function JudgeDashboard() {
             {/* Scoring Criteria */}
             <div className={`space-y-4 mb-6 ${isReadOnly ? 'grid grid-cols-2 gap-4 space-y-0' : ''}`}>
               {[
-                { key: "innovation", label: "Innovation", max: 25 },
-                { key: "feasibility", label: "Feasibility", max: 25 },
-                { key: "presentation", label: "Presentation", max: 20 },
-                { key: "impact", label: "Impact", max: 20 },
-                { key: "documentation", label: "Documentation", max: 10 }
+                { key: "innovation", label: "Innovation", max: 10, weight: scoringWeights.innovation },
+                { key: "technicalDepth", label: "Technical Depth", max: 10, weight: scoringWeights.technicalDepth },
+                { key: "impact", label: "Impact", max: 10, weight: scoringWeights.impact }
               ].map((criteria) => (
                 <div key={criteria.key} className={isReadOnly ? "col-span-1" : ""}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-medium text-slate-700">{criteria.label}</label>
+                    <label className="text-sm font-medium text-slate-700">
+                      {criteria.label} <span className="text-slate-400">({Math.round(criteria.weight)}%)</span>
+                    </label>
                     <span className="text-sm text-slate-500 font-mono">
                       {scores[criteria.key] || 0}<span className="text-slate-300">/</span>{criteria.max}
                     </span>
@@ -511,7 +524,7 @@ export default function JudgeDashboard() {
               <div className="flex items-center justify-between">
                 <span className="font-medium text-slate-700">Total Score</span>
                 <span className="text-2xl font-bold text-slate-900">
-                  {Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0)}/100
+                  {calculateWeightedScore(scores, scoringWeights).toFixed(1)}/100
                 </span>
               </div>
             </div>

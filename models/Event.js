@@ -52,6 +52,11 @@ const EventSchema = new mongoose.Schema(
             description: String,
             maxScore: { type: Number, default: 10 }
         }],
+        scoringWeights: {
+            innovation: { type: Number, default: 40 },
+            technicalDepth: { type: Number, default: 30 },
+            impact: { type: Number, default: 30 }
+        },
         prizes: [{
             title: String, // e.g., "1st Place"
             description: String,

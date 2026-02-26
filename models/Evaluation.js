@@ -19,9 +19,12 @@ const EvaluationSchema = new mongoose.Schema(
     },
     scores: {
       innovation: { type: Number, min: 0, max: 10, required: true },
-      execution: { type: Number, min: 0, max: 10, required: true },
-      presentation: { type: Number, min: 0, max: 10, required: true },
+      technicalDepth: { type: Number, min: 0, max: 10, required: true },
       impact: { type: Number, min: 0, max: 10, required: true },
+    },
+    totalScore: {
+      type: Number,
+      default: 0,
     },
     feedback: {
       type: String,

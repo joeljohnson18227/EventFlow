@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db-connect";
 import Event from "@/models/Event";
 import Submission from "@/models/Submission";
 import { auth } from "@/lib/auth";
+import { DEFAULT_SCORING_WEIGHTS, normalizeWeights } from "@/utils/scoring";
 
 export async function GET() {
     try {
@@ -17,8 +18,11 @@ export async function GET() {
         const score = session.user.id;
 
         // 1. Find events where this user is assigned as a judge
-        const events = await Event.find({ judges: session.user.id });
+        const events = await Event.find({ judges: session.user.id }).select("scoringWeights");
         const eventIds = events.map(e => e._id);
+        const scoringWeightsByEvent = new Map(
+            events.map(e => [e._id.toString(), normalizeWeights(e.scoringWeights || DEFAULT_SCORING_WEIGHTS)])
+        );
 
         // 2. Find submissions for these events
         // Populate team details for display
@@ -34,6 +38,7 @@ export async function GET() {
         submissions.forEach(sub => {
             const evaluation = sub.evaluations.find(e => e.judge.toString() === session.user.id);
 
+            const scoringWeights = scoringWeightsByEvent.get(sub.event?._id?.toString()) || normalizeWeights(DEFAULT_SCORING_WEIGHTS);
             const formattedSub = {
                 id: sub._id,
                 teamName: sub.team?.name || "Unknown Team",
@@ -44,7 +49,8 @@ export async function GET() {
                 description: sub.description,
                 repoLink: sub.repoLink,
                 demoLink: sub.demoLink,
-                status: sub.status // Global status
+                status: sub.status, // Global status
+                scoringWeights
             };
 
             if (evaluation) {
@@ -53,7 +59,8 @@ export async function GET() {
                     score: evaluation.score,
                     evaluatedAt: evaluation.evaluatedAt,
                     feedback: evaluation.feedback,
-                    criteriaScores: evaluation.criteriaScores
+                    criteriaScores: evaluation.criteriaScores,
+                    scoringWeights
                 });
             } else {
                 pending.push(formattedSub);

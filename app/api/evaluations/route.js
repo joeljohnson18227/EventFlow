@@ -4,6 +4,7 @@ import Evaluation from "@/models/Evaluation";
 import Submission from "@/models/Submission";
 import Event from "@/models/Event";
 import { NextResponse } from "next/server";
+import { calculateWeightedScore, DEFAULT_SCORING_WEIGHTS } from "@/utils/scoring";
 
 export async function POST(req) {
   try {
@@ -37,7 +38,7 @@ export async function POST(req) {
     const userRole = session.user.role;
     if (userRole !== "judge" && userRole !== "admin" && userRole !== "organizer") {
       return NextResponse.json(
-        { error: "Only judges can evaluate submissions" },
+        { error: "Only judges, admins, or organizers can evaluate submissions" },
         { status: 403 }
       );
     }
@@ -55,16 +56,22 @@ export async function POST(req) {
       );
     }
 
+    const event = await Event.findById(submission.event).select("scoringWeights");
+    const scoringWeights = event?.scoringWeights || DEFAULT_SCORING_WEIGHTS;
+    const technicalDepthScore = Number(scores.technicalDepth ?? scores.execution ?? 0);
+    const normalizedScores = {
+      innovation: Number(scores.innovation),
+      technicalDepth: technicalDepthScore,
+      impact: Number(scores.impact),
+    };
+    const finalScore = calculateWeightedScore(normalizedScores, scoringWeights);
+
     const evaluation = await Evaluation.create({
       submission: submissionId,
       judge: session.user.id,
       event: submission.event,
-      scores: {
-        innovation: Number(scores.innovation),
-        execution: Number(scores.execution),
-        presentation: Number(scores.presentation),
-        impact: Number(scores.impact)
-      },
+      scores: normalizedScores,
+      totalScore: finalScore,
       feedback,
     });
 

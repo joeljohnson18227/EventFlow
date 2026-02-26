@@ -97,7 +97,8 @@ export async function POST(request) {
       rules,
       judges,
       mentors,
-      isPublic
+      isPublic,
+      scoringWeights
     } = body;
 
     // Basic validation
@@ -120,7 +121,8 @@ export async function POST(request) {
       judges: judges || [],
       mentors: mentors || [],
       isPublic: isPublic !== undefined ? isPublic : true,
-      status: "upcoming"
+      status: "upcoming",
+      scoringWeights
     });
 
     return NextResponse.json(event, { status: 201 });
