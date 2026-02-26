@@ -24,8 +24,35 @@ const UserSchema = new mongoose.Schema(
             linkedin: String,
             website: String,
         },
+        isDeleted: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+        deletedAt: {
+            type: Date,
+            default: null,
+        },
+        deletedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
     },
     { timestamps: true }
 );
+
+function excludeSoftDeleted(next) {
+    const options = this.getOptions?.() || {};
+    if (!options.includeDeleted) {
+        this.where({ isDeleted: { $ne: true } });
+    }
+    next();
+}
+
+UserSchema.pre("find", excludeSoftDeleted);
+UserSchema.pre("findOne", excludeSoftDeleted);
+UserSchema.pre("findOneAndUpdate", excludeSoftDeleted);
+UserSchema.pre("countDocuments", excludeSoftDeleted);
 
 export default mongoose.models.User || mongoose.model("User", UserSchema);
