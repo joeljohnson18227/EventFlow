@@ -14,10 +14,10 @@ import {
     Edit,
     Trash2,
     Check,
-    X,
     Search,
     Gavel,
-    Clock
+    Clock,
+    Copy
 } from "lucide-react";
 import AssignJudgesModal from "@/components/dashboards/organizer/AssignJudgesModal";
 import CertificateDesigner from "@/components/dashboards/organizer/CertificateDesigner";
@@ -30,6 +30,7 @@ export default function EventDashboard() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("overview");
     const [showJudgeModal, setShowJudgeModal] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         const searchParams = new URLSearchParams(window.location.search);
@@ -102,6 +103,17 @@ export default function EventDashboard() {
         }
     };
 
+    const handleCopyLink = async () => {
+        try {
+            const url = `${window.location.origin}/events/${id}`;
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error("Failed to copy link:", err);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -148,6 +160,13 @@ export default function EventDashboard() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleCopyLink}
+                                className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+                            >
+                                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                                {copied ? "Copied!" : "Copy Link"}
+                            </button>
                             <Link href={`/organizer/events/${id}/edit`} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 font-medium transition-colors">
                                 <Edit className="w-4 h-4" />
                                 Edit Event
