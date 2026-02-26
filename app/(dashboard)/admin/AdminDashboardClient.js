@@ -83,6 +83,13 @@ const roleColors = {
   judge: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
+const participationStatusColors = {
+  active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  disqualified: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+  archived: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+  unregistered: "bg-slate-600/30 text-slate-300 border-slate-500/40",
+};
+
 // Status badge colors
 const statusColors = {
   ongoing: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -155,6 +162,11 @@ export default function AdminDashboardClient({ user }) {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [userRegistrationFrom, setUserRegistrationFrom] = useState("");
+  const [userRegistrationTo, setUserRegistrationTo] = useState("");
+  const [userEventFilter, setUserEventFilter] = useState("all");
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
+  const [filterEvents, setFilterEvents] = useState([]);
   const [userPagination, setUserPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [editingUser, setEditingUser] = useState(null);
   const [showUserEditModal, setShowUserEditModal] = useState(false);
@@ -183,10 +195,11 @@ export default function AdminDashboardClient({ user }) {
       fetchEvents();
     } else if (activeTab === "users") {
       fetchUsers();
+      if (filterEvents.length === 0) fetchFilterEvents();
     } else if (activeTab === "announcements") {
       fetchAnnouncements();
     }
-  }, [activeTab, userRoleFilter, userPagination.page]);
+  }, [activeTab, userRoleFilter, userRegistrationFrom, userRegistrationTo, userEventFilter, userStatusFilter, userPagination.page]);
 
   useEffect(() => {
     if (activeTab !== "analytics") return undefined;
@@ -217,6 +230,7 @@ export default function AdminDashboardClient({ user }) {
       // Fetch events count
       const eventsRes = await fetch("/api/events");
       const eventsData = eventsRes.ok ? await eventsRes.json() : { events: [] };
+      setFilterEvents(eventsData.events || []);
       
       // Fetch announcements count
       const announcementsRes = await fetch("/api/announcements");
@@ -385,6 +399,18 @@ export default function AdminDashboardClient({ user }) {
   };
 
   // --- Users Logic ---
+  const fetchFilterEvents = async () => {
+    try {
+      const res = await fetch("/api/events");
+      if (res.ok) {
+        const data = await res.json();
+        setFilterEvents(data.events || []);
+      }
+    } catch (error) {
+      console.error("Error fetching filter events:", error);
+    }
+  };
+
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
@@ -394,6 +420,10 @@ export default function AdminDashboardClient({ user }) {
       });
       if (userRoleFilter !== "all") params.append("role", userRoleFilter);
       if (userSearch) params.append("search", userSearch);
+      if (userRegistrationFrom) params.append("registrationFrom", userRegistrationFrom);
+      if (userRegistrationTo) params.append("registrationTo", userRegistrationTo);
+      if (userEventFilter !== "all") params.append("event", userEventFilter);
+      if (userStatusFilter !== "all") params.append("status", userStatusFilter);
 
       const res = await fetch(`/api/users?${params}`);
       if (res.ok) {
@@ -565,93 +595,82 @@ export default function AdminDashboardClient({ user }) {
     </div>
   );
 
-const formatNumber = (value) => {                                                       
-    514 +    if (!Number.isFinite(value)) return "0";                                              
-    515 +    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;                  
-    516 +    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;                          
-    517 +    return `${value}`;                                                                    
-    518 +  };                                                                                      
-    519 +                                                                                          
-    520 +  const ChartCard = ({ title, subtitle, children }) => (                                  
-    521 +    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl
-          p-6 space-y-4">                                                                          
-    522 +      <div>                                                                               
-    523 +        <h3 className="text-lg font-semibold text-white">{title}</h3>                     
-    524 +        {subtitle && <p className="text-slate-400 text-sm mt-1">{subtitle}</p>}           
-    525 +      </div>                                                                              
-    526 +      {children}                                                                          
-    527 +    </div>                                                                                
-    528 +  );                                                                                      
-    529 +                                                                                          
-    530 +  const BarChart = ({ data, height = 160 }) => {                                          
-    531 +    const maxValue = Math.max(1, ...data.map((item) => item.value));                      
-    532 +    return (                                                                              
-    533 +      <div className="space-y-4">                                                         
-    534 +        <div className="flex items-end gap-3" style={{ height }}>                         
-    535 +          {data.map((item) => {                                                           
-    536 +            const barHeight = Math.round((item.value / maxValue) * 100);                  
-    537 +            return (                                                                      
-    538 +              <div key={item.label} className="flex-1 flex flex-col items-center gap-2">  
-    539 +                <div className="text-xs text-slate-400">{formatNumber(item.value)}</div>  
-    540 +                <div className="w-full bg-slate-700/50 rounded-lg overflow-hidden flex ite
-         ms-end" style={{ height: height - 40 }}>                                                  
-    541 +                  <div                                                                    
-    542 +                    className={`${item.color || "bg-indigo-500"} w-full transition-all dur
-         ation-300`}                                                                               
-    543 +                    style={{ height: `${barHeight}%` }}                                   
-    544 +                  />                                                                      
-    545 +                </div>                                                                    
-    546 +                <div className="text-xs text-slate-400 text-center">{item.label}</div>    
-    547 +              </div>                                                                      
-    548 +            );                                                                            
-    549 +          })}                                                                             
-    550 +        </div>                                                                            
-    551 +      </div>                                                                              
-    552 +    );                                                                                    
-    553 +  };                                                                                      
-    554 +                                                                                          
-    555 +  const LineChart = ({ data }) => {                                                       
-    556 +    const width = 320;                                                                    
-    557 +    const height = 120;                                                                   
-    558 +    const padding = 16;                                                                   
-    559 +    const maxValue = Math.max(1, ...data.map((item) => item.value));                      
-    560 +    const step = data.length > 1 ? (width - padding * 2) / (data.length - 1) : 0;         
-    561 +    const points = data                                                                   
-    562 +      .map((item, index) => {                                                             
-    563 +        const x = padding + step * index;                                                 
-    564 +        const y = height - padding - (item.value / maxValue) * (height - padding * 2);    
-    565 +        return `${x},${y}`;                                                               
-    566 +      })                                                                                  
-    567 +      .join(" ");                                                                         
-    568 +                                                                                          
-    569 +    return (                                                                              
-    570 +      <div className="space-y-4">                                                         
-    571 +        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>             
-    572 +          <polyline                                                                       
-    573 +            fill="none"                                                                   
-    574 +            stroke="rgb(99 102 241)"                                                      
-    575 +            strokeWidth="2"                                                               
-    576 +            points={points}                                                               
-    577 +          />                                                                              
-    578 +          {data.map((item, index) => {                                                    
-    579 +            const x = padding + step * index;                                             
-    580 +            const y = height - padding - (item.value / maxValue) * (height - padding * 2);
-    581 +            return <circle key={item.label} cx={x} cy={y} r="3" fill="rgb(99 102 241)" />;
-    582 +          })}                                                                             
-    583 +        </svg>                                                                            
-    584 +        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-slate-400">    
-    585 +          {data.map((item) => (                                                           
-    586 +            <div key={item.label} className="flex items-center gap-2">                    
-    587 +              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>                
-    588 +              <span>{item.label}</span>                                                   
-    589 +              <span className="ml-auto text-slate-500">{formatNumber(item.value)}</span>  
-    590 +            </div>                                                                        
-    591 +          ))}                                                                             
-    592 +        </div>                                                                            
-    593 +      </div>                                                                              
-    594 +    );                                                                                    
-    595 +  };                                                                                      
-    596 +               
+  const ChartCard = ({ title, subtitle, children }) => (
+    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+        {subtitle && <p className="text-slate-400 text-sm mt-1">{subtitle}</p>}
+      </div>
+      {children}
+    </div>
+  );
+
+  const BarChart = ({ data, height = 160 }) => {
+    const maxValue = Math.max(1, ...data.map((item) => item.value));
+    return (
+      <div className="space-y-4">
+        <div className="flex items-end gap-3" style={{ height }}>
+          {data.map((item) => {
+            const barHeight = Math.round((item.value / maxValue) * 100);
+            return (
+              <div key={item.label} className="flex-1 flex flex-col items-center gap-2">
+                <div className="text-xs text-slate-400">{formatNumber(item.value)}</div>
+                <div className="w-full bg-slate-700/50 rounded-lg overflow-hidden flex items-end" style={{ height: height - 40 }}>
+                  <div
+                    className={`${item.color || "bg-indigo-500"} w-full transition-all duration-300`}
+                    style={{ height: `${barHeight}%` }}
+                  />
+                </div>
+                <div className="text-xs text-slate-400 text-center">{item.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const LineChart = ({ data }) => {
+    const width = 320;
+    const height = 120;
+    const padding = 16;
+    const maxValue = Math.max(1, ...data.map((item) => item.value));
+    const step = data.length > 1 ? (width - padding * 2) / (data.length - 1) : 0;
+    const points = data
+      .map((item, index) => {
+        const x = padding + step * index;
+        const y = height - padding - (item.value / maxValue) * (height - padding * 2);
+        return `${x},${y}`;
+      })
+      .join(" ");
+
+    return (
+      <div className="space-y-4">
+        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+          <polyline
+            fill="none"
+            stroke="rgb(99 102 241)"
+            strokeWidth="2"
+            points={points}
+          />
+          {data.map((item, index) => {
+            const x = padding + step * index;
+            const y = height - padding - (item.value / maxValue) * (height - padding * 2);
+            return <circle key={item.label} cx={x} cy={y} r="3" fill="rgb(99 102 241)" />;
+          })}
+        </svg>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-slate-400">
+          {data.map((item) => (
+            <div key={item.label} className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              <span>{item.label}</span>
+              <span className="ml-auto text-slate-500">{formatNumber(item.value)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const roleDistributionColors = {
     admin: "bg-red-500",
@@ -915,13 +934,16 @@ const formatNumber = (value) => {
 
           {/* Search and Filters */}
           <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col gap-4">
               <div className="relative flex-1">
                 <input
                   type="text"
                   placeholder="Search by name or email..."
                   value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
+                  onChange={(e) => {
+                    setUserSearch(e.target.value);
+                    setUserPagination((prev) => ({ ...prev, page: 1 }));
+                  }}
                   className="w-full bg-slate-900/50 border border-slate-600/50 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                 />
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
@@ -930,10 +952,13 @@ const formatNumber = (value) => {
                   </Tooltip>
                 </div>
               </div>
-              <div className="flex gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                 <select
                   value={userRoleFilter}
-                  onChange={(e) => setUserRoleFilter(e.target.value)}
+                  onChange={(e) => {
+                    setUserRoleFilter(e.target.value);
+                    setUserPagination((prev) => ({ ...prev, page: 1 }));
+                  }}
                   className="bg-slate-900/50 border border-slate-600/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                 >
                   <option value="all">All Roles</option>
@@ -943,13 +968,67 @@ const formatNumber = (value) => {
                   <option value="mentor">Mentor</option>
                   <option value="judge">Judge</option>
                 </select>
-                {(userSearch || userRoleFilter !== "all") && (
+                <input
+                  type="date"
+                  value={userRegistrationFrom}
+                  onChange={(e) => {
+                    setUserRegistrationFrom(e.target.value);
+                    setUserPagination((prev) => ({ ...prev, page: 1 }));
+                  }}
+                  className="bg-slate-900/50 border border-slate-600/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  title="Registration Date From"
+                />
+                <input
+                  type="date"
+                  value={userRegistrationTo}
+                  onChange={(e) => {
+                    setUserRegistrationTo(e.target.value);
+                    setUserPagination((prev) => ({ ...prev, page: 1 }));
+                  }}
+                  className="bg-slate-900/50 border border-slate-600/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  title="Registration Date To"
+                />
+                <select
+                  value={userEventFilter}
+                  onChange={(e) => {
+                    setUserEventFilter(e.target.value);
+                    setUserPagination((prev) => ({ ...prev, page: 1 }));
+                  }}
+                  className="bg-slate-900/50 border border-slate-600/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                >
+                  <option value="all">All Events</option>
+                  {filterEvents.map((event) => (
+                    <option key={event._id} value={event._id}>
+                      {event.title}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={userStatusFilter}
+                  onChange={(e) => {
+                    setUserStatusFilter(e.target.value);
+                    setUserPagination((prev) => ({ ...prev, page: 1 }));
+                  }}
+                  className="bg-slate-900/50 border border-slate-600/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="disqualified">Disqualified</option>
+                  <option value="archived">Archived</option>
+                  <option value="unregistered">Unregistered</option>
+                </select>
+                {(userSearch || userRoleFilter !== "all" || userRegistrationFrom || userRegistrationTo || userEventFilter !== "all" || userStatusFilter !== "all") && (
                   <button
                     onClick={() => {
                       setUserSearch("");
                       setUserRoleFilter("all");
+                      setUserRegistrationFrom("");
+                      setUserRegistrationTo("");
+                      setUserEventFilter("all");
+                      setUserStatusFilter("all");
+                      setUserPagination((prev) => ({ ...prev, page: 1 }));
                     }}
-                    className="flex items-center justify-center p-2.5 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-600/50 rounded-lg transition-colors"
+                    className="flex items-center justify-center p-2.5 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-600/50 rounded-lg transition-colors min-h-[42px]"
                     title="Clear Filters"
                   >
                     <Icons.X />
@@ -969,17 +1048,19 @@ const formatNumber = (value) => {
                     <th className="text-left py-4 px-6 text-slate-400 font-medium text-sm">Email</th>
                     <th className="text-left py-4 px-6 text-slate-400 font-medium text-sm">Role</th>
                     <th className="text-left py-4 px-6 text-slate-400 font-medium text-sm">Joined</th>
+                    <th className="text-left py-4 px-6 text-slate-400 font-medium text-sm">Event</th>
+                    <th className="text-left py-4 px-6 text-slate-400 font-medium text-sm">Status</th>
                     <th className="text-right py-4 px-6 text-slate-400 font-medium text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
                   {loadingUsers ? (
                     <tr>
-                      <td colSpan={5} className="py-8 px-6 text-center text-slate-500">Loading users...</td>
+                      <td colSpan={7} className="py-8 px-6 text-center text-slate-500">Loading users...</td>
                     </tr>
                   ) : users.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 px-6 text-center text-slate-500">No users found</td>
+                      <td colSpan={7} className="py-8 px-6 text-center text-slate-500">No users found</td>
                     </tr>
                   ) : (
                     users.map((userItem) => (
@@ -1000,6 +1081,14 @@ const formatNumber = (value) => {
                         </td>
                         <td className="py-4 px-6 text-slate-400 text-sm">
                           {userItem.createdAt ? new Date(userItem.createdAt).toLocaleDateString() : "N/A"}
+                        </td>
+                        <td className="py-4 px-6 text-slate-300 text-sm">
+                          {userItem.participation?.eventTitle || "—"}
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${participationStatusColors[userItem.participation?.status] || participationStatusColors.unregistered}`}>
+                            {userItem.participation?.status || "unregistered"}
+                          </span>
                         </td>
                         <td className="py-4 px-6 text-right">
                           <div className="flex items-center justify-end gap-2">
