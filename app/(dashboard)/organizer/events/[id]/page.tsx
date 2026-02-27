@@ -19,7 +19,8 @@ import {
     Search,
     Gavel,
     Clock,
-    Copy
+    Copy,
+    CopyPlus
 } from "lucide-react";
 import AssignJudgesModal from "@/components/dashboards/organizer/AssignJudgesModal";
 import CertificateDesigner from "@/components/dashboards/organizer/CertificateDesigner";
@@ -33,6 +34,7 @@ export default function EventDashboard() {
     const [activeTab, setActiveTab] = useState("overview");
     const [showJudgeModal, setShowJudgeModal] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [isDuplicating, setIsDuplicating] = useState(false);
 
     useEffect(() => {
         const searchParams = new URLSearchParams(window.location.search);
@@ -140,6 +142,42 @@ export default function EventDashboard() {
         }
     };
 
+    const handleDuplicate = async () => {
+        if (!event) return;
+        try {
+            setIsDuplicating(true);
+            const payload = {
+                title: `${event.title} (Copy)`,
+                description: event.description || "",
+                startDate: event.startDate,
+                endDate: event.endDate,
+                registrationDeadline: event.registrationDeadline,
+                location: event.location,
+                minTeamSize: event.minTeamSize,
+                maxTeamSize: event.maxTeamSize,
+                tracks: event.tracks || [],
+                rules: event.rules || [],
+                judges: event.judges || [],
+                mentors: event.mentors || [],
+                isPublic: false
+            };
+            
+            const res = await fetch("/api/events", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) throw new Error("Failed to duplicate event");
+            const newEvent = await res.json();
+            router.push(`/organizer/events/${newEvent._id}/edit`);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to duplicate event");
+            setIsDuplicating(false);
+        }
+    };
+
     const handleCopyTeamCode = async (teamId: string, code: string) => {
         try {
             await navigator.clipboard.writeText(code);
@@ -210,6 +248,14 @@ export default function EventDashboard() {
                             >
                                 {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                                 {copied ? "Copied!" : "Copy Link"}
+                            </button>
+                            <button
+                                onClick={handleDuplicate}
+                                disabled={isDuplicating}
+                                className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 font-medium transition-colors disabled:opacity-50"
+                            >
+                                <CopyPlus className="w-4 h-4" />
+                                {isDuplicating ? "Duplicating..." : "Duplicate"}
                             </button>
                             <Link href={`/organizer/events/${id}/edit`} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 font-medium transition-colors">
                                 <Edit className="w-4 h-4" />
