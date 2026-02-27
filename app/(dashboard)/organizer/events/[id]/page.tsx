@@ -14,6 +14,8 @@ import {
     Edit,
     Trash2,
     Check,
+    Globe,
+    Lock,
     Search,
     Gavel,
     Clock,
@@ -114,6 +116,30 @@ export default function EventDashboard() {
         }
     };
 
+    const handleToggleVisibility = async () => {
+        if (!event) return;
+        try {
+            const newVisibility = !event.isPublic;
+            // Optimistic UI update
+            setEvent({ ...event, isPublic: newVisibility });
+            
+            const res = await fetch(`/api/events/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isPublic: newVisibility })
+            });
+            
+            if (!res.ok) {
+                throw new Error("Failed to update visibility");
+            }
+        } catch (err) {
+            console.error(err);
+            // Revert optimistic update on failure
+            setEvent({ ...event, isPublic: !event.isPublic });
+            alert("Failed to update visibility");
+        }
+    };
+
     const handleCopyTeamCode = async (teamId: string, code: string) => {
         try {
             await navigator.clipboard.writeText(code);
@@ -162,6 +188,14 @@ export default function EventDashboard() {
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 capitalize`}>
                                         {event.status}
                                     </span>
+                                    <button
+                                        onClick={handleToggleVisibility}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${event.isPublic ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                                        title={`Click to make ${event.isPublic ? 'Private' : 'Public'}`}
+                                    >
+                                        {event.isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                                        {event.isPublic ? 'Public' : 'Private'}
+                                    </button>
                                     <span>•</span>
                                     <span>{new Date(event.startDate).toLocaleDateString()}</span>
                                     <span>•</span>
