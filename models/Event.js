@@ -29,6 +29,17 @@ const EventSchema = new mongoose.Schema(
             type: String,
             default: "Virtual"
         },
+        customDomain: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            sparse: true,
+            unique: true,
+            match: [
+                /^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}$/,
+                "Custom domain must be a valid domain like event.example.com"
+            ]
+        },
         logo: String,
         isPublic: { type: Boolean, default: true },
         organizer: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -100,5 +111,6 @@ const EventSchema = new mongoose.Schema(
 EventSchema.index({ status: 1 });
 EventSchema.index({ startDate: 1 });
 EventSchema.index({ organizer: 1 });
+EventSchema.index({ customDomain: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.Event || mongoose.model("Event", EventSchema);

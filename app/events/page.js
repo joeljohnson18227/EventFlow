@@ -49,7 +49,8 @@ export default function EventsPage() {
                         description: event.description,
                         startDate: event.startDate,
                         endDate: event.endDate,
-                        registrationDeadline: event.registrationDeadline
+                        registrationDeadline: event.registrationDeadline,
+                        customDomain: event.customDomain || ""
                     }));
                     setEvents(transformedEvents);
                 }
@@ -64,31 +65,38 @@ export default function EventsPage() {
         fetchEvents();
     }, []);
 
-    const handleCopyLink = (eventId) => {
-        const url = `${window.location.origin}/events/${eventId}`;
+    const getEventPublicUrl = (event) => {
+        if (event.customDomain) {
+            return `${window.location.protocol}//${event.customDomain}`;
+        }
+        return `${window.location.origin}/events/${event.id}`;
+    };
+
+    const handleCopyLink = (event) => {
+        const url = getEventPublicUrl(event);
         navigator.clipboard.writeText(url);
-        setCopiedId(eventId);
+        setCopiedId(event.id);
         setTimeout(() => setCopiedId(null), 2000);
     };
 
     const handleShareTwitter = (event) => {
         const text = encodeURIComponent(`Check out this event: ${event.title}`);
-        const url = encodeURIComponent(`${window.location.origin}/events/${event.id}`);
+        const url = encodeURIComponent(getEventPublicUrl(event));
         window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, "_blank");
     };
 
     const handleShareLinkedIn = (event) => {
-        const url = encodeURIComponent(`${window.location.origin}/events/${event.id}`);
+        const url = encodeURIComponent(getEventPublicUrl(event));
         window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, "_blank");
     };
 
     const handleShareWhatsApp = (event) => {
-        const text = encodeURIComponent(`Check out this event: ${event.title} - ${window.location.origin}/events/${event.id}`);
+        const text = encodeURIComponent(`Check out this event: ${event.title} - ${getEventPublicUrl(event)}`);
         window.open(`https://wa.me/?text=${text}`, "_blank");
     };
 
     const handleShareFacebook = (event) => {
-        const url = encodeURIComponent(`${window.location.origin}/events/${event.id}`);
+        const url = encodeURIComponent(getEventPublicUrl(event));
         window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, "_blank");
     };
 
@@ -318,7 +326,7 @@ export default function EventsPage() {
                                                 <CalendarPlus className="w-4 h-4" />
                                             </button>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); handleCopyLink(event.id); }}
+                                                onClick={(e) => { e.stopPropagation(); handleCopyLink(event); }}
                                                 className={`p-2 rounded-lg border transition-all duration-300 ${copiedId === event.id ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' : 'border-white/10 hover:border-white/30 text-slate-400 hover:text-white'}`}
                                                 title="Copy link"
                                             >

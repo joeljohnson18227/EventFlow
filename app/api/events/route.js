@@ -3,6 +3,7 @@ import dbConnect from "@/lib/db-connect";
 import Event from "@/models/Event";
 import { auth } from "@/lib/auth";
 import { eventSchema } from "@/lib/validation";
+import { normalizeDomain } from "@/lib/custom-domain";
 
 // GET all events
 export async function GET(request) {
@@ -52,7 +53,7 @@ export async function GET(request) {
 
     // Optimization: Return only necessary fields for list views
     const events = await Event.find(query)
-      .select("title description startDate endDate registrationDeadline location status isPublic maxTeamSize organizer")
+      .select("title description startDate endDate registrationDeadline location status isPublic maxTeamSize organizer customDomain")
       .populate("organizer", "name email")
       .sort({ startDate: 1 });
 
@@ -98,8 +99,18 @@ export async function POST(request) {
       judges,
       mentors,
       isPublic,
-      scoringWeights
+      scoringWeights,
+      customDomain
     } = validation.data;
+
+    const normalizedCustomDomain = customDomain ? normalizeDomain(customDomain) : undefined;
+
+    if (normalizedCustomDomain) {
+      const existingEvent = await Event.findOne({ customDomain: normalizedCustomDomain }).select("_id");
+      if (existingEvent) {
+        return NextResponse.json({ error: "Custom domain is already in use" }, { status: 409 });
+      }
+    }
 
     const event = await Event.create({
       title,
@@ -117,7 +128,8 @@ export async function POST(request) {
       mentors: mentors || [],
       isPublic: isPublic !== undefined ? isPublic : true,
       status: "upcoming",
-      scoringWeights
+      scoringWeights,
+      customDomain: normalizedCustomDomain
     });
 
     return NextResponse.json(event, { status: 201 });

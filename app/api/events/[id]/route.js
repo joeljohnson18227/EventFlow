@@ -2,6 +2,30 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db-connect";
 import Event from "@/models/Event";
 import { auth } from "@/lib/auth";
+import { isValidCustomDomain, normalizeDomain } from "@/lib/custom-domain";
+
+async function validateAndNormalizeCustomDomain(customDomain, eventId) {
+    if (customDomain === undefined) {
+        return { ok: true };
+    }
+
+    if (customDomain === null || customDomain === "") {
+        return { ok: true, normalizedDomain: undefined };
+    }
+
+    const normalizedDomain = normalizeDomain(customDomain);
+
+    if (!isValidCustomDomain(normalizedDomain)) {
+        return { ok: false, status: 400, message: "Custom domain must be a valid domain like event.example.com" };
+    }
+
+    const existingEvent = await Event.findOne({ customDomain: normalizedDomain }).select("_id");
+    if (existingEvent && existingEvent._id.toString() !== eventId) {
+        return { ok: false, status: 409, message: "Custom domain is already in use" };
+    }
+
+    return { ok: true, normalizedDomain };
+}
 
 export async function GET(request, { params }) {
     try {
@@ -52,6 +76,15 @@ export async function PATCH(request, { params }) {
             return NextResponse.json({ error: "Unauthorized: You can only edit your own events" }, { status: 403 });
         }
 
+        const domainValidation = await validateAndNormalizeCustomDomain(body.customDomain, id);
+        if (!domainValidation.ok) {
+            return NextResponse.json({ error: domainValidation.message }, { status: domainValidation.status });
+        }
+
+        if (body.customDomain !== undefined) {
+            body.customDomain = domainValidation.normalizedDomain;
+        }
+
         const event = await Event.findByIdAndUpdate(id, { $set: body }, { new: true });
 
         return NextResponse.json({ event });
@@ -82,6 +115,15 @@ export async function PUT(request, { params }) {
         // Check ownership
         if (session.user.role !== "admin" && currentEvent.organizer.toString() !== session.user.id) {
             return NextResponse.json({ error: "Unauthorized: You can only edit your own events" }, { status: 403 });
+        }
+
+        const domainValidation = await validateAndNormalizeCustomDomain(body.customDomain, id);
+        if (!domainValidation.ok) {
+            return NextResponse.json({ error: domainValidation.message }, { status: domainValidation.status });
+        }
+
+        if (body.customDomain !== undefined) {
+            body.customDomain = domainValidation.normalizedDomain;
         }
 
         const event = await Event.findByIdAndUpdate(id, body, { new: true });

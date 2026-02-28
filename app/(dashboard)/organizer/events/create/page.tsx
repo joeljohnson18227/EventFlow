@@ -38,7 +38,8 @@ export default function CreateEventPage() {
         minTeamSize: 2,
         maxTeamSize: 4,
         rules: "",
-        isPublic: true
+        isPublic: true,
+        customDomain: ""
     });
 
     const handleChange = (e) => {
@@ -109,7 +110,8 @@ export default function CreateEventPage() {
                     minTeamSize: 2,
                     maxTeamSize: 4,
                     rules: "",
-                    isPublic: true
+                    isPublic: true,
+                    customDomain: ""
                 });
                 setTracks([]);
             },
@@ -179,6 +181,17 @@ export default function CreateEventPage() {
                                     className="w-full rounded-xl border border-slate-200 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none text-black"
                                     placeholder="Describe the goal and theme of your event..."
                                 />
+                            </div>
+                            <div>
+                                <Label className="mb-2 block text-sm font-semibold text-slate-700">Custom Domain</Label>
+                                <Input
+                                    name="customDomain"
+                                    value={formData.customDomain}
+                                    onChange={handleChange}
+                                    placeholder="event.yourdomain.com"
+                                    className="h-12"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">Optional. Map this event to your domain/subdomain.</p>
                             </div>
                         </div>
                     </div>

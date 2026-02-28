@@ -28,7 +28,8 @@ export default function EditEventPage() {
         minTeamSize: 2,
         maxTeamSize: 4,
         rules: "",
-        isPublic: true
+        isPublic: true,
+        customDomain: ""
     });
 
     useEffect(() => {
@@ -59,7 +60,8 @@ export default function EditEventPage() {
                     minTeamSize: event.minTeamSize,
                     maxTeamSize: event.maxTeamSize,
                     rules: event.rules?.join("\n") || "",
-                    isPublic: event.isPublic
+                    isPublic: event.isPublic,
+                    customDomain: event.customDomain || ""
                 });
                 setTracks(event.tracks || []);
                 setFaqs(event.faqs || []);
@@ -231,6 +233,17 @@ export default function EditEventPage() {
                                     className="w-full rounded-xl border border-slate-200 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none text-black"
                                     placeholder="Describe the goal and theme of your event..."
                                 />
+                            </div>
+                            <div>
+                                <Label className="mb-2 block text-sm font-semibold text-slate-700">Custom Domain</Label>
+                                <Input
+                                    name="customDomain"
+                                    value={formData.customDomain}
+                                    onChange={handleChange}
+                                    placeholder="event.yourdomain.com"
+                                    className="h-12"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">Optional. Leave empty to remove domain mapping.</p>
                             </div>
                         </div>
                     </div>

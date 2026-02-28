@@ -17,7 +17,8 @@ import {
     X,
     Search,
     Gavel,
-    Clock
+    Clock,
+    Globe
 } from "lucide-react";
 import AssignJudgesModal from "@/components/dashboards/organizer/AssignJudgesModal";
 import CertificateDesigner from "@/components/dashboards/organizer/CertificateDesigner";
@@ -293,6 +294,26 @@ export default function EventDashboard() {
                                         <span className="font-semibold text-blue-600">{event.maxTeamSize}</span>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Domain */}
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                    <Globe className="w-5 h-5 text-indigo-600" />
+                                    Custom Domain
+                                </h3>
+                                {event.customDomain ? (
+                                    <a
+                                        href={`https://${event.customDomain}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-indigo-600 hover:underline break-all"
+                                    >
+                                        {event.customDomain}
+                                    </a>
+                                ) : (
+                                    <p className="text-slate-500 italic">No custom domain mapped.</p>
+                                )}
                             </div>
                         </div>
                     </div>
